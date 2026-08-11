@@ -1,6 +1,6 @@
 /* オフラインでも開けるようにするための Service Worker。
    本体を更新したら CACHE の版数を上げること。 */
-const CACHE = 'shotoku-sim-v5';
+const CACHE = 'shotoku-sim-v6';
 const ASSETS = [
   './',
   './index.html',

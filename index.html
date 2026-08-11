@@ -196,6 +196,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{
   margin-left:auto; font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--ink); font-size:13px;
 }
 .months .mnote{font-size:11px; color:var(--ink-3); line-height:1.6; margin:-4px 0 0}
+.saveinfo{font-size:12px; color:var(--ink-3); line-height:1.7; margin:0}
 .months .mgrid{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:9px}
 .months .m{display:grid; gap:2px; min-width:0}
 .months .m > span{font-size:11px; color:var(--ink-3); letter-spacing:.04em}
@@ -570,6 +571,8 @@ footer.fine ul{margin:0; padding-left:1.2em}
               <div class="conv" id="kintou_c"></div>
             </div>
           </div>
+          <p class="saveinfo">入力した内容はこの端末のブラウザに自動保存され、次に開いたときそのまま続けられます。外部には送信されません。</p>
+          <div><button type="button" class="btn" id="resetBtn">入力内容をリセット</button></div>
         </div>
       </section>
     </form>
@@ -613,6 +616,7 @@ footer.fine ul{margin:0; padding-left:1.2em}
     <h3>この試算について</h3>
     <ul>
       <li>概算です。実際の税額は端数処理・各種特例・お住まいの自治体の条例で変わります。申告の際は国税庁・自治体の資料でご確認ください。</li>
+      <li>入力した内容は、お使いのブラウザの保存領域（localStorage）にこの端末だけで保存され、外部のサーバーには送信されません。共用の端末で使ったあとなど、消したいときは「入力内容をリセット」を押してください。</li>
       <li>所得税額は速算表で計算し、復興特別所得税（2.1%）を加えています。住民税は所得割10%＋均等割で、調整控除は基礎控除分（人的控除差5万円）などを反映した簡易計算です。</li>
       <li>令和8年分は、令和8年度税制改正（令和8年12月1日施行）を反映しています。給与所得控除の最低保障額74万円・基礎控除104万円（合計所得489万円以下）・扶養親族等の所得要件62万円・勤労学生控除89万円で、住民税の基礎控除43万円と非課税限度額は据え置きです。出典は国税庁「令和８年４月源泉所得税の改正のあらまし」。</li>
       <li>給与所得は速算式で求めており、収入660万円未満の場合に使う「簡易給与所得表」の1,000円単位の区分は考慮していません（数百円の差が出ることがあります）。ただし令和8年分の収入220万円未満については、改正で定められた別表どおりに計算しています。</li>
@@ -1581,6 +1585,7 @@ function render(){
 
   $('detail').innerHTML = h;
   renderFuyo(I);
+  saveState();
 }
 
 /* 扶養している人の収入と、あなたの手取り */
@@ -1643,12 +1648,97 @@ function renderFuyo(I){
 }
 
 /* ============================================================
+   5b. 入力内容の保存（この端末のブラウザにのみ保存する）
+   ============================================================ */
+const STORE_KEY = 'shotoku-simulator.v1';
+
+function collectState(){
+  const s = {y:year, f:{}, m:{}, d:[]};
+  Array.prototype.forEach.call($('form').querySelectorAll('input[id],select[id]'), function(el){
+    s.f[el.id] = (el.type==='checkbox') ? el.checked : el.value;
+  });
+  MFIELDS.forEach(function(f){ s.m[f.id] = {on:monthly[f.id].on, v:monthly[f.id].v.slice()}; });
+  s.d = deps.map(function(d){ return {age:d.age, rev:d.rev, disab:d.disab, rokushin:d.rokushin}; });
+  return s;
+}
+let saveTimer = null;
+function saveState(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(function(){
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(collectState())); }catch(e){}
+  }, 250);
+}
+function applyState(s){
+  if(!s || typeof s!=='object') return false;
+  if(s.y && YMAP[s.y]) year = s.y;
+  syncYear();   // 年分によって選択肢が変わるので、値を戻す前に作り直す
+  Object.keys(s.f||{}).forEach(function(id){
+    const el = $(id); if(!el) return;
+    if(el.type==='checkbox') el.checked = !!s.f[id];
+    else el.value = s.f[id];
+  });
+  YEN_IDS.forEach(function(id){ $(id).value = num(id).toLocaleString('ja-JP'); });
+  deps = (s.d||[]).map(function(d){
+    return {id:++depSeq, age:Number(d.age)||0, rev:Number(d.rev)||0,
+            disab:d.disab||'none', rokushin:!!d.rokushin};
+  });
+  MFIELDS.forEach(function(f){
+    const m = (s.m||{})[f.id];
+    if(!m) return;
+    const v = (m.v||[]).slice(0,12).map(function(n){ return Number(n)||0; });
+    while(v.length<12) v.push(0);
+    monthly[f.id].v = v;
+    monthly[f.id].on = !!m.on;
+    fillMonthInputs(f);
+    $(f.id+'_m').hidden = !m.on;
+    $(f.id+'_btn').setAttribute('aria-pressed', String(!!m.on));
+    $(f.id+'_btn').textContent = m.on ? '年額でまとめて入力' : '月ごとに入力';
+    syncAnnual(f);
+  });
+  return true;
+}
+function restoreState(){
+  let s = null;
+  try{ s = JSON.parse(localStorage.getItem(STORE_KEY)||'null'); }catch(e){ s = null; }
+  if(!s) return false;
+  try{ return applyState(s); }
+  catch(e){
+    try{ localStorage.removeItem(STORE_KEY); }catch(e2){}
+    return false;
+  }
+}
+
+/* ============================================================
    6. 初期化
    ============================================================ */
 const DEFAULTS = {kyuyoRev:900000, jigyoRev:600000, keihi:120000, nenkinRev:0, otherInc:0,
   spKyuyo:0, spOther:0, shakai:250000, ideco:0, hoken:0, other:0, kintou:5000};
-Object.keys(DEFAULTS).forEach(function(k){ $(k).value = DEFAULTS[k].toLocaleString('ja-JP'); });
-$('age').value = 21; $('spAge').value = 0;
+function applyDefaults(){
+  Object.keys(DEFAULTS).forEach(function(k){ $(k).value = DEFAULTS[k].toLocaleString('ja-JP'); });
+  $('age').value = 21; $('spAge').value = 0;
+  ['disab','widow','kyuchi','channel','kubun'].forEach(function(id){ const e=$(id); if(e) e.selectedIndex = 0; });
+  ['student','depOfParent','depOfSpouse','spExists'].forEach(function(id){ $(id).checked = false; });
+  deps = [];
+  MFIELDS.forEach(function(f){
+    monthly[f.id] = {on:false, v:new Array(12).fill(0)};
+    fillMonthInputs(f);
+    $(f.id+'_m').hidden = true;
+    $(f.id+'_btn').setAttribute('aria-pressed','false');
+    $(f.id+'_btn').textContent = '月ごとに入力';
+  });
+}
+applyDefaults();
+
+$('resetBtn').addEventListener('click', function(){
+  if(!window.confirm('入力した内容をすべて消して、最初の状態に戻します。よろしいですか？')) return;
+  try{ localStorage.removeItem(STORE_KEY); }catch(e){}
+  year = 2025;
+  applyDefaults();
+  syncYear();
+  drawDeps();
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+});
 
 YEN_IDS.forEach(function(id){
   const el = $(id);
@@ -1681,7 +1771,7 @@ window.addEventListener('resize', function(){
   rzTimer = setTimeout(function(){ if(!$('fvPanel').hidden) renderFuyo(collect()); }, 150);
 });
 
-syncYear();
+if(!restoreState()) syncYear();   // 前回の入力があれば復元する
 drawDeps();
 render();
 </script>
