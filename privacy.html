@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>プライバシーポリシー｜所得シミュレーター</title>
+<meta name="description" content="所得シミュレーターのプライバシーポリシー。入力された情報は端末内にのみ保存され、外部に送信されません。">
+<meta name="color-scheme" content="light dark">
+<style>
+:root{
+  --ground:#e8ecef; --card:#fbfcfd; --ink:#17222c; --ink-2:#4d5d6b; --ink-3:#7d8c99;
+  --rule:#ccd5dc; --rule-strong:#adbac4; --accent:#1f4b7a;
+  --mincho:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","MS PMincho",serif;
+  --gothic:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic","Noto Sans JP","Meiryo",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--ground:#101519; --card:#181f26; --ink:#e4eaef; --ink-2:#a3b1bc; --ink-3:#7a8894;
+        --rule:#2b353e; --rule-strong:#3d4a55; --accent:#7fb0e0}
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--ground); color:var(--ink); font-family:var(--gothic);
+  font-size:15px; line-height:1.9; -webkit-font-smoothing:antialiased;
+}
+main{
+  max-width:760px; margin:0 auto; padding:28px 20px 72px;
+  padding-left:max(20px,env(safe-area-inset-left)); padding-right:max(20px,env(safe-area-inset-right));
+}
+.card{background:var(--card); border:1px solid var(--rule); border-radius:3px; padding:26px 26px 30px}
+h1{font-family:var(--mincho); font-size:clamp(20px,3.4vw,26px); font-weight:600; letter-spacing:.04em; margin:0 0 4px}
+.sub{color:var(--ink-3); font-size:13px; margin:0 0 22px}
+h2{
+  font-family:var(--mincho); font-size:15px; font-weight:600; letter-spacing:.08em;
+  margin:26px 0 8px; padding-bottom:6px; border-bottom:1px solid var(--rule-strong);
+}
+p,li{color:var(--ink-2)}
+ul{padding-left:1.3em; margin:8px 0}
+a{color:var(--accent)}
+.back{display:inline-block; margin-top:26px; font-size:13px}
+@media (max-width:560px){ main{padding:14px 12px 48px} .card{padding:18px 16px 22px} }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>プライバシーポリシー</h1>
+    <p class="sub">所得シミュレーター（Web版・Android版・iOS版）／最終更新日：2026年8月12日</p>
+
+    <h2>収集する情報</h2>
+    <p>本アプリは、利用者の個人情報を収集しません。氏名・メールアドレス・電話番号・位置情報・端末の識別子・連絡先・写真などを取得することはありません。利用状況の解析ツールや広告のための計測も一切組み込んでいません。</p>
+
+    <h2>入力された金額の取り扱い</h2>
+    <p>収入・控除額・家族構成など、利用者が入力した内容は、計算のためにその場で使われるほかは、次の目的でのみ保存されます。</p>
+    <ul>
+      <li>アプリを次に開いたときに、前回の続きから使えるようにするため</li>
+    </ul>
+    <p>保存先は利用者の端末内（ブラウザまたはアプリのローカルストレージ）に限られます。開発者を含む第三者がこれらの内容を閲覧・取得することはできません。外部のサーバーへ送信されることもありません。</p>
+
+    <h2>保存した内容の削除</h2>
+    <p>アプリ内の「試算の設定」にある「入力内容をリセット」を押すと、保存された内容はすべて削除されます。アプリをアンインストールした場合も同様に削除されます。</p>
+
+    <h2>通信</h2>
+    <p>本アプリは計算のための通信を行いません。すべての処理が端末内で完結します。</p>
+
+    <h2>第三者への提供</h2>
+    <p>収集する情報がないため、第三者への提供・販売・共有は一切ありません。</p>
+
+    <h2>お子様の利用について</h2>
+    <p>本アプリは特定の年齢層を対象としたものではなく、いずれの年齢の利用者からも個人情報を収集しません。</p>
+
+    <h2>免責</h2>
+    <p>本アプリが表示する税額はいずれも概算です。実際の税額は端数処理・各種特例・お住まいの自治体の条例によって変わります。申告や手続きの際は、必ず国税庁および自治体の資料でご確認ください。本アプリは税務相談を行うものではなく、個別の税務判断に代わるものではありません。本アプリの利用によって生じた損害について、開発者は責任を負いかねます。</p>
+
+    <h2>ポリシーの変更</h2>
+    <p>内容を変更した場合は、このページを更新し、最終更新日を改めます。</p>
+
+    <h2>お問い合わせ</h2>
+    <p>本ポリシーおよび本アプリについてのお問い合わせは、<a href="https://github.com/KURU77/income-tax-simulator-jp/issues">GitHub のイシュー</a>までお願いします。</p>
+
+    <a class="back" href="./">← 所得シミュレーターに戻る</a>
+  </div>
+</main>
+</body>
+</html>

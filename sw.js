@@ -1,13 +1,14 @@
 /* オフラインでも開けるようにするための Service Worker。
    本体を更新したら CACHE の版数を上げること。 */
-const CACHE = 'shotoku-sim-v8';
+const CACHE = 'shotoku-sim-v9';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './icons/apple-touch-icon.png'
+  './icons/apple-touch-icon.png',
+  './privacy.html'
 ];
 
 self.addEventListener('install', function (e) {
