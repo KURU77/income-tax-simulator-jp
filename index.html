@@ -614,7 +614,8 @@ footer.fine ul{margin:0; padding-left:1.2em}
     <ul>
       <li>概算です。実際の税額は端数処理・各種特例・お住まいの自治体の条例で変わります。申告の際は国税庁・自治体の資料でご確認ください。</li>
       <li>所得税額は速算表で計算し、復興特別所得税（2.1%）を加えています。住民税は所得割10%＋均等割で、調整控除は基礎控除分（人的控除差5万円）などを反映した簡易計算です。</li>
-      <li>給与所得は速算式で求めており、収入660万円未満の場合に使う「簡易給与所得表」の1,000円単位の区分は考慮していません（数百円の差が出ることがあります）。</li>
+      <li>令和8年分は、令和8年度税制改正（令和8年12月1日施行）を反映しています。給与所得控除の最低保障額74万円・基礎控除104万円（合計所得489万円以下）・扶養親族等の所得要件62万円・勤労学生控除89万円で、住民税の基礎控除43万円と非課税限度額は据え置きです。出典は国税庁「令和８年４月源泉所得税の改正のあらまし」。</li>
+      <li>給与所得は速算式で求めており、収入660万円未満の場合に使う「簡易給与所得表」の1,000円単位の区分は考慮していません（数百円の差が出ることがあります）。ただし令和8年分の収入220万円未満については、改正で定められた別表どおりに計算しています。</li>
       <li>社会保険（106万円・130万円）の壁は加入する健康保険や勤務先の規模で扱いが変わるため、目安として表示しています。業務委託の収入は、健康保険組合によって必要経費の扱いが異なります。</li>
       <li>青色申告特別控除は、要件（複式簿記・e-Tax等）を満たしている前提で差し引いています。</li>
     </ul>
@@ -634,13 +635,21 @@ const YEARS = [
   {y:2023, label:'令和5年',  note:'税額の計算は前年と同じ。'},
   {y:2024, label:'令和6年',  note:'<b>定額減税</b>（所得税3万円・住民税1万円×本人＋扶養人数）を実施。均等割5,000円のうち1,000円が森林環境税に。社会保険の適用拡大が51人以上へ（2024年10月〜）。'},
   {y:2025, label:'令和7年',  note:'基礎控除が58万円＋所得に応じた上乗せ（最大95万円）、給与所得控除の最低保障が65万円に。所得税の壁が<b>160万円</b>へ。<b>特定親族特別控除</b>（19〜22歳・150万円まで）を新設、勤労学生控除は所得85万円まで。'},
-  {y:2026, label:'令和8年',  note:'令和7年と同じ枠組み（基礎控除の上乗せは令和7年・8年分の特例）。'},
+  {y:2026, label:'令和8年',  note:'<b>令和8年度税制改正（令和8年12月1日施行）</b>を反映。給与所得控除の最低保障が74万円、基礎控除は合計所得489万円以下で104万円になり、所得税の壁は<b>178万円</b>へ。扶養親族等の所得要件は62万円（給与収入136万円）、勤労学生控除は89万円（同163万円）。住民税の基礎控除は43万円のまま据え置きで、非課税ラインは119万円です。'},
 ];
 const YMAP = {}; YEARS.forEach(function(o){YMAP[o.y]=o;});
 
 /* 給与所得控除 */
 function kyuyoDeduction(rev, y){
   if(rev<=0) return 0;
+  if(y>=2026){
+    // 令和8年度税制改正：最低保障額 65万円→74万円
+    if(rev<=2200000) return 740000;
+    if(rev<=3600000) return rev*0.3+80000;
+    if(rev<=6600000) return rev*0.2+440000;
+    if(rev<=8500000) return rev*0.1+1100000;
+    return 1950000;
+  }
   if(y<=2019){
     if(rev<=1625000) return 650000;
     if(rev<=1800000) return rev*0.4;
@@ -663,7 +672,17 @@ function kyuyoDeduction(rev, y){
   if(rev<=8500000) return rev*0.1+1100000;
   return 1950000;
 }
-function kyuyoIncome(rev, y){ return Math.max(0, Math.floor(rev - kyuyoDeduction(rev,y))); }
+function kyuyoIncome(rev, y){
+  // 令和8・9年分は、収入69万1,000円以上220万円未満について別表が定められている
+  if(y>=2026 && rev<2200000){
+    if(rev<741000) return 0;
+    if(rev<2191000) return rev-740000;
+    if(rev<2193000) return 1451000;
+    if(rev<2196000) return 1453000;
+    return 1456000;
+  }
+  return Math.max(0, Math.floor(rev - kyuyoDeduction(rev,y)));
+}
 
 /* 公的年金等控除（65歳未満／以上で別表） */
 function nenkinIncome(rev, y, age, otherIncome){
@@ -691,8 +710,19 @@ function kisoKojo(total, y){
     if(total<=25000000) return 160000;
     return 0;
   }
+  if(y>=2026){
+    // 令和8年度税制改正：法定額を62万円とし、合計所得489万円以下は104万円に
+    if(total<=4890000) return 1040000;
+    if(total<=6550000) return 670000;
+    if(total<=23500000) return 620000;
+    if(total<=24000000) return 480000;
+    if(total<=24500000) return 320000;
+    if(total<=25000000) return 160000;
+    return 0;
+  }
+  // 令和7年分
   if(total<=1320000) return 950000;   // 恒久措置
-  if(total<=3360000) return 880000;   // 令和7・8年分の上乗せ特例
+  if(total<=3360000) return 880000;   // 上乗せ特例
   if(total<=4890000) return 680000;
   if(total<=6550000) return 630000;
   if(total<=23500000) return 580000;
@@ -709,10 +739,10 @@ function kisoKojoJumin(total, y){
   return 0;
 }
 
-/* 扶養親族・同一生計配偶者と認められる合計所得金額の上限 */
-function fuyoLimit(y){ return y<=2019 ? 380000 : y<=2024 ? 480000 : 580000; }
+/* 扶養親族・同一生計配偶者と認められる合計所得金額の上限（住民税も同じ） */
+function fuyoLimit(y){ return y<=2019 ? 380000 : y<=2024 ? 480000 : y<=2025 ? 580000 : 620000; }
 /* 勤労学生控除の合計所得金額の上限 */
-function studentLimit(y){ return y<=2019 ? 650000 : y<=2024 ? 750000 : 850000; }
+function studentLimit(y){ return y<=2019 ? 650000 : y<=2024 ? 750000 : y<=2025 ? 850000 : 890000; }
 /* 青色申告特別控除の選択肢 */
 function aoiroOptions(y){
   return y<=2019
@@ -1512,7 +1542,7 @@ function render(){
   h += '</table>';
 
   h += '<h3>所得の内訳</h3><table class="led">';
-  h += t('給与所得（収入 '+yen(I.kyuyoRev)+' − 給与所得控除 '+yen(kyuyoDeduction(I.kyuyoRev,year))+'）', R.kyuyo0);
+  h += t('給与所得（収入 '+yen(I.kyuyoRev)+' − 給与所得控除 '+yen(I.kyuyoRev - R.kyuyo0)+'）', R.kyuyo0);
   if(R.adjChild) h += t('　所得金額調整控除（子育て等）', -R.adjChild);
   if(R.adjBoth)  h += t('　所得金額調整控除（給与＋年金）', -R.adjBoth);
   h += t((I.kubun==='zatsu'?'雑所得（業務）':'事業所得')+'（収入 '+yen(I.jigyoRev)+' − 経費 '+yen(I.keihi)+(R.aoiro?' − 青色控除 '+yen(R.aoiro):'')+'）', R.jigyo);
