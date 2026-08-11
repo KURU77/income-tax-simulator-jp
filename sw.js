@@ -1,6 +1,6 @@
 /* オフラインでも開けるようにするための Service Worker。
    本体を更新したら CACHE の版数を上げること。 */
-const CACHE = 'shotoku-sim-v3';
+const CACHE = 'shotoku-sim-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -11,10 +11,13 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', function (e) {
+  // ブラウザのHTTPキャッシュを経由せず、必ず配信元から取り直して保存する
   e.waitUntil(
-    caches.open(CACHE).then(function (c) { return c.addAll(ASSETS); }).then(function () {
-      return self.skipWaiting();
-    })
+    caches.open(CACHE).then(function (c) {
+      return Promise.all(ASSETS.map(function (u) {
+        return fetch(u, { cache: 'reload' }).then(function (r) { return c.put(u, r); });
+      }));
+    }).then(function () { return self.skipWaiting(); })
   );
 });
 
@@ -30,10 +33,10 @@ self.addEventListener('fetch', function (e) {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
 
-  // 本体は新しい版を優先し、オフラインならキャッシュに切り替える
+  // 本体は毎回サーバーに確認して新しい版を優先し、オフラインならキャッシュに切り替える
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req).then(function (res) {
+      fetch(req, { cache: 'no-cache' }).then(function (res) {
         const copy = res.clone();
         caches.open(CACHE).then(function (c) { c.put('./index.html', copy); });
         return res;
