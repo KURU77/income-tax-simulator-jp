@@ -233,9 +233,12 @@ input:focus-visible,select:focus-visible,button:focus-visible{
 /* ---------- 結果ヒーロー ---------- */
 .hero{padding:22px 22px 20px; border-bottom:1px solid var(--rule); position:relative}
 .hero .eyebrow{margin-bottom:10px}
+.hero .figs{display:flex; flex-wrap:wrap; gap:12px 28px}
+.hero .fig{display:grid; gap:1px; min-width:0}
+.hero .fig .lb2{font-size:12px; color:var(--ink-2); letter-spacing:.02em}
 .hero .big{
   font-family:var(--mono); font-variant-numeric:tabular-nums;
-  font-size:clamp(30px,5.4vw,44px); line-height:1.1; font-weight:700; letter-spacing:-.01em;
+  font-size:clamp(23px,3.9vw,31px); line-height:1.15; font-weight:700; letter-spacing:-.01em;
 }
 .hero .big.ok{color:var(--ok)} .hero .big.crit{color:var(--crit)}
 .hero .cap{font-size:13px; color:var(--ink-2); margin-top:8px; text-wrap:balance}
@@ -259,6 +262,36 @@ input:focus-visible,select:focus-visible,button:focus-visible{
 .fill{position:absolute; inset:1px auto 1px 1px; border-radius:5px; min-width:3px}
 .fill.ok{background:var(--ok)} .fill.warn{background:var(--warn)} .fill.crit{background:var(--crit)}
 .wall .bot{display:flex; gap:8px; font-size:12px; color:var(--ink-2); font-family:var(--mono); font-variant-numeric:tabular-nums}
+.wall .amts{display:flex; flex-wrap:wrap; gap:2px 18px; font-size:12px; color:var(--ink-2); margin-top:1px}
+.wall .amts b{font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--ink); font-weight:700}
+.wall .amts .over b{color:var(--crit)}
+
+/* ---------- 試算枠 ---------- */
+.whatif{
+  margin:0 22px 18px; padding:14px 15px 15px; border-radius:2px;
+  background:var(--card-2); border:1px solid var(--rule); border-left:3px solid var(--accent);
+  display:flex; flex-direction:column; gap:10px;
+}
+.whatif .wi-top{display:flex; align-items:baseline; gap:9px}
+.whatif .wi-ttl{font-family:var(--mincho); font-size:14px; font-weight:600; letter-spacing:.1em; color:var(--ink)}
+.whatif .wi-sub{font-size:11px; color:var(--ink-3)}
+.whatif .wi-row{display:flex; flex-wrap:wrap; align-items:center; gap:7px; font-size:13px; color:var(--ink-2)}
+.whatif .wi-row input{width:130px; flex:0 1 130px}
+.whatif .wi-row select{width:auto; flex:0 0 auto; min-width:120px}
+.whatif .wi-acts{display:flex; flex-wrap:wrap; gap:6px}
+.whatif .wi-acts .btn{font-size:12px; padding:7px 11px; min-height:38px}
+.whatif table.wi{width:100%; border-collapse:collapse; font-size:13px}
+.whatif table.wi td{padding:5px 0; border-bottom:1px dotted var(--rule); color:var(--ink-2)}
+.whatif table.wi td.a,.whatif table.wi td.b{
+  text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; padding-left:10px;
+}
+.whatif table.wi td.a{color:var(--ink-3)}
+.whatif table.wi td.b{color:var(--ink)}
+.whatif table.wi tr.sum td{border-top:1px solid var(--rule-strong); border-bottom:0; font-weight:700; color:var(--ink); padding-top:7px}
+.whatif .wi-msg{font-size:12px; line-height:1.7; color:var(--ink-2)}
+.whatif .wi-msg b{color:var(--ink)}
+.whatif .wi-msg .bad{color:var(--crit); font-weight:700}
+.whatif .wi-msg .good{color:var(--ok); font-weight:700}
 .pill{
   font-family:var(--gothic); font-size:11px; font-weight:700; padding:1px 7px; border-radius:2px;
 }
@@ -558,7 +591,7 @@ footer.fine ul{margin:0; padding-left:1.2em}
         <div class="sect-body">
           <div class="grid2">
             <div class="row">
-              <label class="lb" for="channel">これから稼ぐ分の区分 <span class="sub">「あといくら」の計算に使用</span></label>
+              <label class="lb" for="channel">メーターの基準にする区分 <span class="sub">金額は給与・業務委託の両方を表示します</span></label>
               <select id="channel">
                 <option value="kyuyo">給与（アルバイト・パート）</option>
                 <option value="jigyo">業務委託（経費なし）</option>
@@ -586,6 +619,30 @@ footer.fine ul{margin:0; padding-left:1.2em}
         <div class="seal" id="seal" hidden></div>
       </div>
       <div class="walls" id="walls"></div>
+
+      <div class="whatif">
+        <div class="wi-top"><span class="wi-ttl">試算枠</span><span class="wi-sub">あと稼いだ場合を試す</span></div>
+        <div class="wi-row">
+          <span>あと</span>
+          <input class="yen" type="text" inputmode="numeric" id="tryAmt" value="0" aria-label="追加で稼ぐ金額">
+          <span>円を</span>
+          <select id="tryCh" aria-label="追加で稼ぐ区分">
+            <option value="kyuyo">給与</option>
+            <option value="jigyo">業務委託</option>
+          </select>
+          <span>で稼いだら</span>
+        </div>
+        <div class="wi-acts">
+          <button type="button" class="btn" data-try="100000">＋10万</button>
+          <button type="button" class="btn" data-try="300000">＋30万</button>
+          <button type="button" class="btn" data-try="500000">＋50万</button>
+          <button type="button" class="btn" data-try="1000000">＋100万</button>
+          <button type="button" class="btn" id="tryWallBtn" data-try="wall">壁の直前まで</button>
+          <button type="button" class="btn" data-try="0">クリア</button>
+        </div>
+        <div id="tryOut"></div>
+      </div>
+
       <div class="detail" id="detail"></div>
     </aside>
   </div>
@@ -968,14 +1025,16 @@ function calc(I){
 /* ============================================================
    3. 「あといくら稼げるか」— 二分探索
    ============================================================ */
-function probeInput(I, delta){
+function probeInput(I, delta, ch){
   const J = Object.assign({}, I);
-  if(I.channel==='kyuyo') J.kyuyoRev = Math.max(0, I.kyuyoRev + delta);
+  if(ch==='kyuyo') J.kyuyoRev = Math.max(0, I.kyuyoRev + delta);
   else J.jigyoRev = Math.max(0, I.jigyoRev + delta);
   return J;
 }
-function headroom(I, test){
-  const ok = function(d){ const J = probeInput(I,d); return test(calc(J), J); };
+/* ch を省略すると入力欄で選ばれている区分を使う */
+function headroom(I, test, ch){
+  ch = ch || I.channel;
+  const ok = function(d){ const J = probeInput(I,d,ch); return test(calc(J), J); };
   if(ok(0)){
     let lo = 0, hi = 10000;
     while(hi<200000000 && ok(hi)){ lo = hi; hi *= 2; }
@@ -983,7 +1042,7 @@ function headroom(I, test){
     while(hi-lo>1){ const m = Math.floor((lo+hi)/2); if(ok(m)) lo = m; else hi = m; }
     return {over:false, amount:lo};
   }
-  const cur = I.channel==='kyuyo' ? I.kyuyoRev : I.jigyoRev;
+  const cur = ch==='kyuyo' ? I.kyuyoRev : I.jigyoRev;
   if(!ok(-cur)) return {over:true, amount:null};
   let lo = -cur, hi = 0;
   while(hi-lo>1){ const m = Math.floor((lo+hi)/2); if(ok(m)) lo = m; else hi = m; }
@@ -1458,21 +1517,27 @@ function render(){
     W.push({name:'勤労学生控除', desc:'合計所得'+(studentLimit(year)/10000)+'万円を超えると使えなくなります', test:function(r){ return r.total<=studentLimit(year); }});
   }
 
+  // 給与で稼ぐ場合と業務委託で稼ぐ場合の両方を出す
   const rows = W.map(function(w){
-    const h = headroom(I, w.test);
-    return {w:w, h:h};
+    const k = headroom(I, w.test, 'kyuyo');
+    const j = headroom(I, w.test, 'jigyo');
+    return {w:w, k:k, j:j, h:(I.channel==='kyuyo' ? k : j)};
   });
 
   /* --- ヒーロー --- */
   const pending = rows.filter(function(r){ return !r.h.over && r.h.amount!==null; })
                       .sort(function(a,b){ return a.h.amount-b.h.amount; });
   const heroNum = $('heroNum'), heroCap = $('heroCap'), seal = $('seal');
+  const amt = function(h){ return h.amount===null ? '上限なし' : 'あと '+yen(h.amount); };
   if(pending.length){
     const p = pending[0];
-    heroNum.textContent = 'あと ' + yen(p.h.amount);
-    heroNum.className = 'big ok';
-    heroCap.innerHTML = '<b>'+p.w.name+'</b>の手前まで、'+($('channel').value==='kyuyo'?'給与':'業務委託の収入')+'であと'+yen(p.h.amount)+'（'+(p.h.amount/10000).toFixed(1)+'万円）稼げます。'
-      + '<br>そこまで稼いだときの収入合計は '+yen(R.revTotal+p.h.amount)+'。';
+    heroNum.className = 'figs';
+    heroNum.innerHTML =
+      '<div class="fig"><span class="lb2">給与で稼ぐなら</span><b class="big ok">'+amt(p.k)+'</b></div>'+
+      '<div class="fig"><span class="lb2">業務委託で稼ぐなら</span><b class="big ok">'+amt(p.j)+'</b></div>';
+    heroCap.innerHTML = '<b>'+p.w.name+'</b>の手前まで稼げる金額です。'
+      + '業務委託は必要経費を足さない前提で、青色申告特別控除の使い残しがあればその分だけ枠が広くなります。'
+      + '<br>選んでいる「'+($('channel').value==='kyuyo'?'給与':'業務委託')+'」で稼いだ場合、そこまでの収入合計は '+yen(R.revTotal+p.h.amount)+'。';
     if(anyMonthly()){
       const pi = paceInfo(I, R.revTotal + p.h.amount);
       if(pi && pi.pace!==undefined){
@@ -1481,10 +1546,11 @@ function render(){
       }
     }
     seal.hidden = false; seal.className = 'seal free'; seal.textContent = R.taxAll===0?'非課税':'枠あり';
-    $('mbarTxt').innerHTML = '<b>あと '+yen(p.h.amount)+'</b>'+p.w.name+'まで';
+    $('mbarTxt').innerHTML = '<b>給与 '+amt(p.k)+'</b>業務委託 '+amt(p.j)+'（'+p.w.name+'まで）';
   }else{
-    heroNum.textContent = yen(R.taxAll);
-    heroNum.className = 'big ' + (R.taxAll>0?'crit':'ok');
+    heroNum.className = 'figs';
+    heroNum.innerHTML = '<div class="fig"><span class="lb2">年間の税額</span><b class="big '
+      + (R.taxAll>0?'crit':'ok')+'">'+yen(R.taxAll)+'</b></div>';
     heroCap.innerHTML = R.taxAll>0
       ? '今の収入だと年間の税額は <b>'+yen(R.taxAll)+'</b>（所得税等 '+yen(R.taxIt)+' ＋ 住民税 '+yen(R.taxRt)+'）。非課税の枠はすでに使い切っています。'
       : '税額はかかりません。';
@@ -1506,14 +1572,22 @@ function render(){
         '<span class="pill '+state+'">'+(r.h.over?'超過':(state==='warn'?'まもなく':'枠あり'))+'</span>'+
         '<span class="lim">'+(line!==null?'収入計 '+yen(line):'—')+'</span></div>'+
       '<div class="track"><div class="fill '+state+'" style="width:calc('+(ratio*100).toFixed(1)+'% - 2px)"></div></div>'+
-      '<div class="bot"><span>'+
-        (r.h.over
-          ? (r.h.amount!==null ? '⚠ '+yen(r.h.amount)+' 超えています' : '⚠ すでに超えています')
-          : (r.h.amount===null ? '上限なし' : 'あと '+yen(r.h.amount)))+
-      '</span></div>'+
+      '<div class="amts">'+
+        ['給与',r.k,'業務委託',r.j].reduce(function(acc,_,i,arr){
+          if(i%2) return acc;
+          const nm = arr[i], h = arr[i+1];
+          const txt = h.over
+            ? (h.amount!==null ? yen(h.amount)+' 超過' : '超過')
+            : (h.amount===null ? '上限なし' : 'あと '+yen(h.amount));
+          return acc + '<span'+(h.over?' class="over"':'')+'>'+nm+' <b>'+txt+'</b></span>';
+        },'')+
+      '</div>'+
       '<div class="bot"><span style="font-family:var(--gothic);color:var(--ink-3);font-size:11px">'+r.w.desc+'</span></div>';
     wallsEl.appendChild(el);
   });
+
+  /* --- 試算枠：あと◯◯円稼いだ場合 --- */
+  renderTry(I, R, rows, pending);
 
   /* --- 社会保険の目安 --- */
   const shaho = [];
@@ -1588,6 +1662,54 @@ function render(){
   saveState();
 }
 
+/* 試算枠：あと◯◯円稼いだ場合をその場で比べる */
+const tryNum = function(){ const v=($('tryAmt').value||'').replace(/[^0-9]/g,''); return v?parseInt(v,10):0; };
+const tedori = function(I,R){ return Math.max(0, R.revTotal - I.keihi - R.taxAll - I.shakai - I.ideco); };
+
+function renderTry(I, R, rows, pending){
+  const near = pending.length ? pending[0] : null;
+  const btn = $('tryWallBtn');
+  btn.dataset.k = near && near.k.amount!==null ? near.k.amount : '';
+  btn.dataset.j = near && near.j.amount!==null ? near.j.amount : '';
+  btn.disabled = !near;
+  btn.style.opacity = near ? '' : '.45';
+
+  const add = tryNum(), ch = $('tryCh').value;
+  const out = $('tryOut');
+  if(add<=0){
+    out.innerHTML = '<p class="wi-msg">金額を入れると、いまの入力にその分を上乗せしたときの税額と手取りを比べられます。</p>';
+    return;
+  }
+  const J = probeInput(I, add, ch);
+  const R2 = calc(J);
+  const t1 = tedori(I,R), t2 = tedori(J,R2);
+  const gain = t2 - t1, taxUp = R2.taxAll - R.taxAll;
+
+  const line = function(name,a,b,cls){
+    return '<tr'+(cls?' class="'+cls+'"':'')+'><td>'+name+'</td><td class="a">'+yen(a)+'</td><td class="b">'+yen(b)+'</td></tr>';
+  };
+  let h = '<table class="wi"><tr><td></td><td class="a">いま</td><td class="b">'+(ch==='kyuyo'?'給与':'業務委託')+'＋'+yen(add)+'</td></tr>';
+  h += line('収入合計', R.revTotal, R2.revTotal);
+  h += line('合計所得金額', R.total, R2.total);
+  h += line('所得税等', R.taxIt, R2.taxIt);
+  h += line('住民税', R.taxRt, R2.taxRt);
+  h += line('税額の合計', R.taxAll, R2.taxAll, 'sum');
+  h += line('手取りの目安', t1, t2, 'sum');
+  h += '</table>';
+
+  // 新たに超える壁
+  const broken = rows.filter(function(r){ return !r.h.over && !r.w.test(R2, J); })
+                     .map(function(r){ return r.w.name; });
+  const keep = Math.max(0, Math.round(gain/add*1000)/10);
+  h += '<p class="wi-msg">収入が '+yen(add)+' 増えると、税金は <b>'+yen(taxUp)+'</b> 増えて、'
+     + '手取りは <span class="'+(gain>0?'good':'bad')+'">'+yen(gain)+'</span> 増えます'
+     + '（増えた収入のうち手取りになるのは <b>'+keep.toFixed(1)+'%</b>）。'
+     + (broken.length ? '<br><span class="bad">超える壁：'+broken.join('、')+'</span>'
+                      : '<br>新しく超える壁はありません。')
+     + '</p>';
+  out.innerHTML = h;
+}
+
 /* 扶養している人の収入と、あなたの手取り */
 let fvKey = null;
 function renderFuyo(I){
@@ -1657,6 +1779,7 @@ function collectState(){
   Array.prototype.forEach.call($('form').querySelectorAll('input[id],select[id]'), function(el){
     s.f[el.id] = (el.type==='checkbox') ? el.checked : el.value;
   });
+  s.t = {a:tryNum(), c:$('tryCh').value};
   MFIELDS.forEach(function(f){ s.m[f.id] = {on:monthly[f.id].on, v:monthly[f.id].v.slice()}; });
   s.d = deps.map(function(d){ return {age:d.age, rev:d.rev, disab:d.disab, rokushin:d.rokushin}; });
   return s;
@@ -1677,6 +1800,10 @@ function applyState(s){
     if(el.type==='checkbox') el.checked = !!s.f[id];
     else el.value = s.f[id];
   });
+  if(s.t){
+    $('tryAmt').value = (Number(s.t.a)||0).toLocaleString('ja-JP');
+    if(s.t.c) $('tryCh').value = s.t.c;
+  }
   YEN_IDS.forEach(function(id){ $(id).value = num(id).toLocaleString('ja-JP'); });
   deps = (s.d||[]).map(function(d){
     return {id:++depSeq, age:Number(d.age)||0, rev:Number(d.rev)||0,
@@ -1718,6 +1845,7 @@ function applyDefaults(){
   $('age').value = 21; $('spAge').value = 0;
   ['disab','widow','kyuchi','channel','kubun'].forEach(function(id){ const e=$(id); if(e) e.selectedIndex = 0; });
   ['student','depOfParent','depOfSpouse','spExists'].forEach(function(id){ $(id).checked = false; });
+  $('tryAmt').value = '0'; $('tryCh').value = 'kyuyo';
   deps = [];
   MFIELDS.forEach(function(f){
     monthly[f.id] = {on:false, v:new Array(12).fill(0)};
@@ -1746,6 +1874,22 @@ YEN_IDS.forEach(function(id){
 });
 $('form').addEventListener('input', render);
 $('form').addEventListener('change', render);
+
+/* 試算枠（フォームの外にあるので個別に配線する） */
+$('tryAmt').addEventListener('input', render);
+$('tryAmt').addEventListener('blur', function(){ $('tryAmt').value = tryNum().toLocaleString('ja-JP'); });
+$('tryCh').addEventListener('change', render);
+Array.prototype.forEach.call(document.querySelectorAll('.wi-acts .btn'), function(b){
+  b.addEventListener('click', function(){
+    if(b.dataset.try==='wall'){
+      const d = $('tryCh').value==='kyuyo' ? b.dataset.k : b.dataset.j;
+      $('tryAmt').value = (Number(d)||0).toLocaleString('ja-JP');
+    }else{
+      $('tryAmt').value = Number(b.dataset.try).toLocaleString('ja-JP');
+    }
+    render();
+  });
+});
 
 /* 入力中は固定バーを隠し、結果が画面に入ったら不要なので隠す */
 let barFocus = false, heroOn = false;
