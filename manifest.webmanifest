@@ -1,0 +1,16 @@
+{
+  "name": "所得シミュレーター｜業務委託＋給与の年間税額",
+  "short_name": "所得シミュレーター",
+  "description": "業務委託などの所得と給与所得から、令和元年〜令和8年それぞれの税制で年間の課税額と「あといくら稼げるか」を試算します。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#e8ecef",
+  "theme_color": "#1f4b7a",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
