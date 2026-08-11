@@ -275,11 +275,29 @@ input:focus-visible,select:focus-visible,button:focus-visible{
 .whatif .wi-top{display:flex; align-items:baseline; gap:9px}
 .whatif .wi-ttl{font-family:var(--mincho); font-size:14px; font-weight:600; letter-spacing:.1em; color:var(--ink)}
 .whatif .wi-sub{font-size:11px; color:var(--ink-3)}
-.whatif .wi-row{display:flex; flex-wrap:wrap; align-items:center; gap:7px; font-size:13px; color:var(--ink-2)}
-.whatif .wi-row input{width:130px; flex:0 1 130px}
-.whatif .wi-row select{width:auto; flex:0 0 auto; min-width:120px}
+.whatif .wi-fields{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px}
+.whatif .wi-f{display:grid; gap:3px; min-width:0}
+.whatif .wi-f > span{font-size:12px; color:var(--ink-2)}
+
+/* ---------- 親などの負担 ---------- */
+.parentcard{
+  margin:0 22px 18px; padding:14px 15px 15px; border-radius:2px;
+  background:var(--card-2); border:1px solid var(--rule); border-left:3px solid var(--warn);
+  display:flex; flex-direction:column; gap:9px;
+}
+.parentcard[hidden]{display:none}
+.parentcard .pc-ttl{
+  font-family:var(--mincho); font-size:14px; font-weight:600; letter-spacing:.1em; color:var(--ink);
+}
+.parentcard .pc-msg{font-size:12px; line-height:1.8; color:var(--ink-2)}
+.parentcard .pc-msg b{color:var(--ink)}
+.parentcard .pc-big{
+  font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:22px; font-weight:700; color:var(--warn);
+}
+.parentcard .pc-big.zero{color:var(--ok)}
+.parentcard table.wi td{border-bottom:1px dotted var(--rule)}
 .whatif .wi-acts{display:flex; flex-wrap:wrap; gap:6px}
-.whatif .wi-acts .btn{font-size:12px; padding:7px 11px; min-height:38px}
+.whatif .wi-acts .btn{font-size:12px; padding:9px 12px; min-height:44px}
 .whatif table.wi{width:100%; border-collapse:collapse; font-size:13px}
 .whatif table.wi td{padding:5px 0; border-bottom:1px dotted var(--rule); color:var(--ink-2)}
 .whatif table.wi td.a,.whatif table.wi td.b{
@@ -511,6 +529,20 @@ footer.fine ul{margin:0; padding-left:1.2em}
           </div>
           <label class="check"><input type="checkbox" id="student"> 学生で、勤労による所得がある（勤労学生控除）</label>
           <label class="check"><input type="checkbox" id="depOfParent"> 親などの扶養に入っている（扶養控除の壁を表示）</label>
+          <div id="parentBox" hidden>
+            <div class="grid2">
+              <div class="row">
+                <label class="lb" for="pKyuyo">扶養している親などの給与収入 <span class="sub">負担額の計算に使用</span></label>
+                <input class="yen" type="text" inputmode="numeric" id="pKyuyo">
+                <div class="conv" id="pKyuyo_c"></div>
+              </div>
+              <div class="row">
+                <label class="lb" for="pShakai">その人の社会保険料 <span class="sub">概算で可</span></label>
+                <input class="yen" type="text" inputmode="numeric" id="pShakai">
+                <div class="conv" id="pShakai_c"></div>
+              </div>
+            </div>
+          </div>
           <label class="check"><input type="checkbox" id="depOfSpouse"> 配偶者の扶養に入っている（配偶者控除の壁を表示）</label>
         </div>
       </section>
@@ -620,25 +652,20 @@ footer.fine ul{margin:0; padding-left:1.2em}
       </div>
       <div class="walls" id="walls"></div>
 
+      <div class="parentcard" id="parentCard" hidden></div>
+
       <div class="whatif">
         <div class="wi-top"><span class="wi-ttl">試算枠</span><span class="wi-sub">あと稼いだ場合を試す</span></div>
-        <div class="wi-row">
-          <span>あと</span>
-          <input class="yen" type="text" inputmode="numeric" id="tryAmt" value="0" aria-label="追加で稼ぐ金額">
-          <span>円を</span>
-          <select id="tryCh" aria-label="追加で稼ぐ区分">
-            <option value="kyuyo">給与</option>
-            <option value="jigyo">業務委託</option>
-          </select>
-          <span>で稼いだら</span>
+        <div class="wi-fields">
+          <label class="wi-f"><span>給与であと</span>
+            <input class="yen" type="text" inputmode="numeric" id="tryKyuyo" value="0" aria-label="給与で追加で稼ぐ金額"></label>
+          <label class="wi-f"><span>業務委託であと</span>
+            <input class="yen" type="text" inputmode="numeric" id="tryJigyo" value="0" aria-label="業務委託で追加で稼ぐ金額"></label>
         </div>
         <div class="wi-acts">
-          <button type="button" class="btn" data-try="100000">＋10万</button>
-          <button type="button" class="btn" data-try="300000">＋30万</button>
-          <button type="button" class="btn" data-try="500000">＋50万</button>
-          <button type="button" class="btn" data-try="1000000">＋100万</button>
-          <button type="button" class="btn" id="tryWallBtn" data-try="wall">壁の直前まで</button>
-          <button type="button" class="btn" data-try="0">クリア</button>
+          <button type="button" class="btn" data-fill="kyuyo">給与を壁の直前まで</button>
+          <button type="button" class="btn" data-fill="jigyo">業務委託を壁の直前まで</button>
+          <button type="button" class="btn" data-fill="clear">クリア</button>
         </div>
         <div id="tryOut"></div>
       </div>
@@ -1237,7 +1264,7 @@ function fvDraw(S, I, subj){
    4. 入出力
    ============================================================ */
 const $ = function(id){ return document.getElementById(id); };
-const YEN_IDS = ['kyuyoRev','jigyoRev','keihi','nenkinRev','otherInc','spKyuyo','spOther','shakai','ideco','hoken','other','kintou'];
+const YEN_IDS = ['kyuyoRev','jigyoRev','keihi','nenkinRev','otherInc','spKyuyo','spOther','shakai','ideco','hoken','other','kintou','pKyuyo','pShakai'];
 let year = 2025;
 let deps = [];
 let depSeq = 0;
@@ -1460,6 +1487,7 @@ function collect(){
     spouse:sp,
     deps: deps.map(function(d){ return {age:d.age, income:kyuyoIncome(d.rev,year), rev:d.rev, disab:d.disab, rokushin:d.rokushin}; }),
     shakai:num('shakai'), ideco:num('ideco'), hoken:num('hoken'), other:num('other'),
+    pKyuyo:num('pKyuyo'), pShakai:num('pShakai'),
     kyuchi:$('kyuchi').value, kintou:num('kintou'), channel:$('channel').value
   };
 }
@@ -1477,6 +1505,7 @@ function render(){
   $('age_c').textContent = I.age>=65 ? '公的年金等控除は65歳以上の区分' : '';
   $('spAge_c').textContent = I.spouse && I.spouse.age>=70 ? '老人控除対象配偶者' : '';
   $('spBox').hidden = !$('spExists').checked;
+  $('parentBox').hidden = !$('depOfParent').checked;
   deps.forEach(function(d){
     if(!d._el) return;
     const inc = kyuyoIncome(d.rev, year), limit = fuyoLimit(year);
@@ -1586,7 +1615,8 @@ function render(){
     wallsEl.appendChild(el);
   });
 
-  /* --- 試算枠：あと◯◯円稼いだ場合 --- */
+  /* --- 親などの負担と、試算枠 --- */
+  renderParent(I, R);
   renderTry(I, R, rows, pending);
 
   /* --- 社会保険の目安 --- */
@@ -1663,47 +1693,112 @@ function render(){
 }
 
 /* 試算枠：あと◯◯円稼いだ場合をその場で比べる */
-const tryNum = function(){ const v=($('tryAmt').value||'').replace(/[^0-9]/g,''); return v?parseInt(v,10):0; };
+const tryNumOf = function(id){ const v=($(id).value||'').replace(/[^0-9]/g,''); return v?parseInt(v,10):0; };
 const tedori = function(I,R){ return Math.max(0, R.revTotal - I.keihi - R.taxAll - I.shakai - I.ideco); };
+const withTry = function(I, addK, addJ){
+  return Object.assign({}, I, {kyuyoRev:I.kyuyoRev+addK, jigyoRev:I.jigyoRev+addJ});
+};
+
+/* 扶養している親などの側で申告した場合の税額を、同じ計算で求める。
+   あなたの合計所得が要件を超えると、その人の扶養控除が減って税額が増える。 */
+function parentTax(I, myTotal){
+  const base = {
+    year:I.year, kyuyoRev:I.pKyuyo, jigyoRev:0, keihi:0, aoiroMax:0, kubun:'zatsu',
+    nenkinRev:0, otherInc:0, age:50, disab:'none', widow:'none', student:false,
+    depOfParent:false, depOfSpouse:false, spouse:null,
+    deps:[{age:I.age, income:myTotal, rev:0, disab:'none', rokushin:false}],
+    shakai:I.pShakai, ideco:0, hoken:0, other:0,
+    kyuchi:I.kyuchi, kintou:I.kintou, channel:'kyuyo'
+  };
+  const R = calc(base);
+  let ded = 0;
+  R.deductions.forEach(function(e){ if(e.key==='dep0') ded += e.it; });
+  return {tax:R.taxAll, taxIt:R.taxIt, taxRt:R.taxRt, ded:ded};
+}
+function parentBurden(I, myTotal){
+  if(!I.depOfParent) return null;
+  const full = parentTax(I, 0);            // あなたの所得が要件内におさまる場合
+  const now  = parentTax(I, myTotal);
+  return {full:full, now:now, diff:now.tax-full.tax,
+          diffIt:now.taxIt-full.taxIt, diffRt:now.taxRt-full.taxRt};
+}
+
+function renderParent(I, R){
+  const card = $('parentCard');
+  const pb = parentBurden(I, R.total);
+  card.hidden = !pb;
+  if(!pb) return;
+  const lost = pb.full.ded - pb.now.ded;
+  let h = '<div class="pc-ttl">扶養している親などの負担</div>';
+  if(pb.full.ded===0){
+    h += '<p class="pc-msg">'+I.age+'歳のあなたは扶養控除の対象年齢ではないため、'
+       + 'あなたの収入によって親などの税額が変わることはありません。</p>';
+  }else if(lost<=0){
+    h += '<div class="pc-big zero">'+yen(0)+'</div>'
+       + '<p class="pc-msg">いまのあなたの合計所得 <b>'+yen(R.total)+'</b> なら、'
+       + '親などは <b>'+yen(pb.full.ded)+'</b> の控除を満額で受けられます。追加の負担はありません。</p>';
+  }else{
+    h += '<div class="pc-big">'+yen(pb.diff)+'</div>'
+       + '<p class="pc-msg">あなたの合計所得が <b>'+yen(R.total)+'</b> になったことで、'
+       + '親などの控除が '+yen(pb.full.ded)+' から <b>'+yen(pb.now.ded)+'</b> に'+yen(lost)+'減り、'
+       + 'その人の年間の税額が <b>'+yen(pb.diff)+'</b> 増えます'
+       + '（所得税等 '+yen(pb.diffIt)+' ＋ 住民税 '+yen(pb.diffRt)+'）。</p>';
+  }
+  h += '<p class="pc-msg" style="color:var(--ink-3)">給与収入 '+yen(I.pKyuyo)+'・社会保険料 '+yen(I.pShakai)
+     + ' の人が、あなただけを扶養しているものとして計算しています。金額は「あなたの状況」で変えられます。</p>';
+  card.innerHTML = h;
+}
+
+let nearestW = null, lastI = null;   // 「壁の直前まで」ボタン用に控えておく
 
 function renderTry(I, R, rows, pending){
-  const near = pending.length ? pending[0] : null;
-  const btn = $('tryWallBtn');
-  btn.dataset.k = near && near.k.amount!==null ? near.k.amount : '';
-  btn.dataset.j = near && near.j.amount!==null ? near.j.amount : '';
-  btn.disabled = !near;
-  btn.style.opacity = near ? '' : '.45';
+  nearestW = pending.length ? pending[0].w : null;
+  lastI = I;
+  Array.prototype.forEach.call(document.querySelectorAll('.wi-acts .btn[data-fill]'), function(b){
+    if(b.dataset.fill==='clear') return;
+    b.disabled = !nearestW;
+    b.style.opacity = nearestW ? '' : '.45';
+  });
 
-  const add = tryNum(), ch = $('tryCh').value;
+  const addK = tryNumOf('tryKyuyo'), addJ = tryNumOf('tryJigyo'), add = addK + addJ;
   const out = $('tryOut');
   if(add<=0){
-    out.innerHTML = '<p class="wi-msg">金額を入れると、いまの入力にその分を上乗せしたときの税額と手取りを比べられます。</p>';
+    out.innerHTML = '<p class="wi-msg">給与・業務委託それぞれの金額を入れると、'
+      + 'いまの入力にその分を上乗せしたときの税額と手取りを比べられます。両方に入れて合わせて試すこともできます。</p>';
     return;
   }
-  const J = probeInput(I, add, ch);
+  const J = withTry(I, addK, addJ);
   const R2 = calc(J);
   const t1 = tedori(I,R), t2 = tedori(J,R2);
-  const gain = t2 - t1, taxUp = R2.taxAll - R.taxAll;
+  const pb1 = parentBurden(I, R.total), pb2 = parentBurden(J, R2.total);
+  const p1 = pb1 ? pb1.diff : 0, p2 = pb2 ? pb2.diff : 0;
+  const gain = (t2 - p2) - (t1 - p1);
+  const taxUp = R2.taxAll - R.taxAll;
 
   const line = function(name,a,b,cls){
     return '<tr'+(cls?' class="'+cls+'"':'')+'><td>'+name+'</td><td class="a">'+yen(a)+'</td><td class="b">'+yen(b)+'</td></tr>';
   };
-  let h = '<table class="wi"><tr><td></td><td class="a">いま</td><td class="b">'+(ch==='kyuyo'?'給与':'業務委託')+'＋'+yen(add)+'</td></tr>';
+  const head = [addK?'給与＋'+yen(addK):'', addJ?'業務委託＋'+yen(addJ):''].filter(Boolean).join(' / ');
+  let h = '<table class="wi"><tr><td></td><td class="a">いま</td><td class="b">'+head+'</td></tr>';
   h += line('収入合計', R.revTotal, R2.revTotal);
   h += line('合計所得金額', R.total, R2.total);
   h += line('所得税等', R.taxIt, R2.taxIt);
   h += line('住民税', R.taxRt, R2.taxRt);
   h += line('税額の合計', R.taxAll, R2.taxAll, 'sum');
   h += line('手取りの目安', t1, t2, 'sum');
+  if(pb1){
+    h += line('親などの負担増', p1, p2);
+    h += line('親の負担を引いた手取り', t1-p1, t2-p2, 'sum');
+  }
   h += '</table>';
 
-  // 新たに超える壁
   const broken = rows.filter(function(r){ return !r.h.over && !r.w.test(R2, J); })
                      .map(function(r){ return r.w.name; });
   const keep = Math.max(0, Math.round(gain/add*1000)/10);
-  h += '<p class="wi-msg">収入が '+yen(add)+' 増えると、税金は <b>'+yen(taxUp)+'</b> 増えて、'
-     + '手取りは <span class="'+(gain>0?'good':'bad')+'">'+yen(gain)+'</span> 増えます'
-     + '（増えた収入のうち手取りになるのは <b>'+keep.toFixed(1)+'%</b>）。'
+  h += '<p class="wi-msg">収入が '+yen(add)+' 増えると、あなたの税金は <b>'+yen(taxUp)+'</b> 増え'
+     + (pb1 ? '、親などの負担も <b>'+yen(p2-p1)+'</b> 増えるので' : '、')
+     + '、'+(pb1?'世帯で見た':'')+'手取りは <span class="'+(gain>0?'good':'bad')+'">'+yen(gain)+'</span> 増えます'
+     + '（増えた収入のうち残るのは <b>'+keep.toFixed(1)+'%</b>）。'
      + (broken.length ? '<br><span class="bad">超える壁：'+broken.join('、')+'</span>'
                       : '<br>新しく超える壁はありません。')
      + '</p>';
@@ -1779,7 +1874,7 @@ function collectState(){
   Array.prototype.forEach.call($('form').querySelectorAll('input[id],select[id]'), function(el){
     s.f[el.id] = (el.type==='checkbox') ? el.checked : el.value;
   });
-  s.t = {a:tryNum(), c:$('tryCh').value};
+  s.t = {k:tryNumOf('tryKyuyo'), j:tryNumOf('tryJigyo')};
   MFIELDS.forEach(function(f){ s.m[f.id] = {on:monthly[f.id].on, v:monthly[f.id].v.slice()}; });
   s.d = deps.map(function(d){ return {age:d.age, rev:d.rev, disab:d.disab, rokushin:d.rokushin}; });
   return s;
@@ -1801,8 +1896,8 @@ function applyState(s){
     else el.value = s.f[id];
   });
   if(s.t){
-    $('tryAmt').value = (Number(s.t.a)||0).toLocaleString('ja-JP');
-    if(s.t.c) $('tryCh').value = s.t.c;
+    $('tryKyuyo').value = (Number(s.t.k)||0).toLocaleString('ja-JP');
+    $('tryJigyo').value = (Number(s.t.j)||0).toLocaleString('ja-JP');
   }
   YEN_IDS.forEach(function(id){ $(id).value = num(id).toLocaleString('ja-JP'); });
   deps = (s.d||[]).map(function(d){
@@ -1839,13 +1934,14 @@ function restoreState(){
    6. 初期化
    ============================================================ */
 const DEFAULTS = {kyuyoRev:900000, jigyoRev:600000, keihi:120000, nenkinRev:0, otherInc:0,
-  spKyuyo:0, spOther:0, shakai:250000, ideco:0, hoken:0, other:0, kintou:5000};
+  spKyuyo:0, spOther:0, shakai:250000, ideco:0, hoken:0, other:0, kintou:5000,
+  pKyuyo:6000000, pShakai:900000};
 function applyDefaults(){
   Object.keys(DEFAULTS).forEach(function(k){ $(k).value = DEFAULTS[k].toLocaleString('ja-JP'); });
   $('age').value = 21; $('spAge').value = 0;
   ['disab','widow','kyuchi','channel','kubun'].forEach(function(id){ const e=$(id); if(e) e.selectedIndex = 0; });
   ['student','depOfParent','depOfSpouse','spExists'].forEach(function(id){ $(id).checked = false; });
-  $('tryAmt').value = '0'; $('tryCh').value = 'kyuyo';
+  $('tryKyuyo').value = '0'; $('tryJigyo').value = '0';
   deps = [];
   MFIELDS.forEach(function(f){
     monthly[f.id] = {on:false, v:new Array(12).fill(0)};
@@ -1876,17 +1972,21 @@ $('form').addEventListener('input', render);
 $('form').addEventListener('change', render);
 
 /* 試算枠（フォームの外にあるので個別に配線する） */
-$('tryAmt').addEventListener('input', render);
-$('tryAmt').addEventListener('blur', function(){ $('tryAmt').value = tryNum().toLocaleString('ja-JP'); });
-$('tryCh').addEventListener('change', render);
-Array.prototype.forEach.call(document.querySelectorAll('.wi-acts .btn'), function(b){
+['tryKyuyo','tryJigyo'].forEach(function(id){
+  $(id).addEventListener('input', render);
+  $(id).addEventListener('blur', function(){ $(id).value = tryNumOf(id).toLocaleString('ja-JP'); });
+});
+Array.prototype.forEach.call(document.querySelectorAll('.wi-acts .btn[data-fill]'), function(b){
   b.addEventListener('click', function(){
-    if(b.dataset.try==='wall'){
-      const d = $('tryCh').value==='kyuyo' ? b.dataset.k : b.dataset.j;
-      $('tryAmt').value = (Number(d)||0).toLocaleString('ja-JP');
-    }else{
-      $('tryAmt').value = Number(b.dataset.try).toLocaleString('ja-JP');
-    }
+    const kind = b.dataset.fill;
+    if(kind==='clear'){ $('tryKyuyo').value = '0'; $('tryJigyo').value = '0'; render(); return; }
+    if(!nearestW || !lastI) return;
+    // もう一方の欄に入っている分は据え置いたまま、この区分で壁の直前まで求める
+    const other = kind==='kyuyo' ? tryNumOf('tryJigyo') : tryNumOf('tryKyuyo');
+    const base = kind==='kyuyo' ? withTry(lastI, 0, other) : withTry(lastI, other, 0);
+    const h = headroom(base, nearestW.test, kind);
+    const v = (h.over || h.amount===null) ? 0 : h.amount;
+    $(kind==='kyuyo' ? 'tryKyuyo' : 'tryJigyo').value = v.toLocaleString('ja-JP');
     render();
   });
 });
