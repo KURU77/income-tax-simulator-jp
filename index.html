@@ -174,9 +174,9 @@ input:focus-visible,select:focus-visible,button:focus-visible{
   outline:2px solid var(--accent); outline-offset:1px;
 }
 .conv{font-size:11px; color:var(--ink-3); font-family:var(--mono); text-align:right; min-height:16px}
-input[readonly]{background:var(--card); color:var(--ink-2)}
 
 /* ---------- 月ごとの入力 ---------- */
+.row.wide .amtrow,.row.wide .conv{max-width:470px}
 .amtrow{display:flex; gap:8px; align-items:stretch}
 .amtrow input{flex:1 1 auto}
 .mtoggle{
@@ -193,8 +193,9 @@ input[readonly]{background:var(--card); color:var(--ink-2)}
 .months .mhead{display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; font-size:13px}
 .months .mhead .ttl{font-weight:700; color:var(--ink)}
 .months .mhead .tot{
-  margin-left:auto; font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--ink-2); font-size:12px;
+  margin-left:auto; font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--ink); font-size:13px;
 }
+.months .mnote{font-size:11px; color:var(--ink-3); line-height:1.6; margin:-4px 0 0}
 .months .mgrid{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:9px}
 .months .m{display:grid; gap:2px; min-width:0}
 .months .m > span{font-size:11px; color:var(--ink-3); letter-spacing:.04em}
@@ -396,23 +397,27 @@ footer.fine ul{margin:0; padding-left:1.2em}
       <section class="sect">
         <div class="sect-head"><h2>収入</h2><span class="hint">年間の金額（円）</span></div>
         <div class="sect-body" id="incomeBody">
+          <div class="row wide">
+            <label class="lb" for="kyuyoRev">給与の収入金額 <span class="sub">源泉徴収票の「支払金額」</span></label>
+            <div class="amtrow">
+              <input class="yen" type="text" inputmode="numeric" id="kyuyoRev">
+              <button type="button" class="mtoggle" id="kyuyoRev_btn" aria-pressed="false" aria-controls="kyuyoRev_m">月ごとに入力</button>
+            </div>
+            <div class="conv" id="kyuyoRev_c"></div>
+          </div>
+          <div class="months" id="kyuyoRev_m" hidden></div>
+
+          <div class="row wide">
+            <label class="lb" for="jigyoRev">業務委託などの収入金額 <span class="sub">経費を引く前</span></label>
+            <div class="amtrow">
+              <input class="yen" type="text" inputmode="numeric" id="jigyoRev">
+              <button type="button" class="mtoggle" id="jigyoRev_btn" aria-pressed="false" aria-controls="jigyoRev_m">月ごとに入力</button>
+            </div>
+            <div class="conv" id="jigyoRev_c"></div>
+          </div>
+          <div class="months" id="jigyoRev_m" hidden></div>
+
           <div class="grid2">
-            <div class="row">
-              <label class="lb" for="kyuyoRev">給与の収入金額 <span class="sub">源泉徴収票の「支払金額」</span></label>
-              <div class="amtrow">
-                <input class="yen" type="text" inputmode="numeric" id="kyuyoRev">
-                <button type="button" class="mtoggle" id="kyuyoRev_btn" aria-pressed="false">月ごと</button>
-              </div>
-              <div class="conv" id="kyuyoRev_c"></div>
-            </div>
-            <div class="row">
-              <label class="lb" for="jigyoRev">業務委託などの収入金額 <span class="sub">経費を引く前</span></label>
-              <div class="amtrow">
-                <input class="yen" type="text" inputmode="numeric" id="jigyoRev">
-                <button type="button" class="mtoggle" id="jigyoRev_btn" aria-pressed="false">月ごと</button>
-              </div>
-              <div class="conv" id="jigyoRev_c"></div>
-            </div>
             <div class="row">
               <label class="lb" for="keihi">必要経費</label>
               <input class="yen" type="text" inputmode="numeric" id="keihi">
@@ -1187,10 +1192,13 @@ const MFIELDS = [
 const monthly = {};
 MFIELDS.forEach(function(f){ monthly[f.id] = {on:false, v:new Array(12).fill(0)}; });
 
+const sum12 = function(v){ return v.reduce(function(a,b){ return a+b; }, 0); };
+
+/* 月の合計を年額の欄に反映する */
 function syncAnnual(f){
   const st = monthly[f.id];
   if(!st.on) return;
-  const sum = st.v.reduce(function(a,b){ return a+b; }, 0);
+  const sum = sum12(st.v);
   $(f.id).value = sum.toLocaleString('ja-JP');
   $(f.id+'_tot').textContent = '合計 '+yen(sum)+'（月平均 '+yen(Math.round(sum/12))+'）';
 }
@@ -1200,25 +1208,29 @@ function fillMonthInputs(f){
     el.value = st.v[i].toLocaleString('ja-JP');
   });
 }
+/* 年額の欄が直接書き換えられたときは12か月へ均等に割り振る（端数は12月へ） */
+function spreadAnnual(f){
+  const st = monthly[f.id];
+  const annual = num(f.id), base = Math.floor(annual/12);
+  st.v = new Array(12).fill(base);
+  st.v[11] = annual - base*11;
+  fillMonthInputs(f);
+  $(f.id+'_tot').textContent = '合計 '+yen(annual)+'（月平均 '+yen(Math.round(annual/12))+'）';
+}
 function setMonthly(f, on){
   const st = monthly[f.id];
   st.on = on;
-  if(on && st.v.reduce(function(a,b){return a+b;},0)===0){
-    // いま入っている年額を12か月に割り振る（端数は12月へ）
-    const annual = num(f.id), base = Math.floor(annual/12);
-    if(annual>0){ st.v = new Array(12).fill(base); st.v[11] = annual - base*11; }
-  }
-  if(on) fillMonthInputs(f);
+  if(on && sum12(st.v)===0 && num(f.id)>0) spreadAnnual(f);
+  else if(on) fillMonthInputs(f);
   $(f.id+'_m').hidden = !on;
-  $(f.id).readOnly = on;
   $(f.id+'_btn').setAttribute('aria-pressed', String(on));
-  $(f.id+'_btn').textContent = on ? '年額に戻す' : '月ごと';
+  $(f.id+'_btn').textContent = on ? '年額でまとめて入力' : '月ごとに入力';
   syncAnnual(f);
   render();
+  if(on) $(f.id+'_m').querySelector('input[data-m]').focus();
 }
 MFIELDS.forEach(function(f){
-  const box = document.createElement('div');
-  box.className = 'months'; box.id = f.id+'_m'; box.hidden = true;
+  const box = $(f.id+'_m');
   let cells = '';
   for(let i=0;i<12;i++){
     cells += '<label class="m"><span>'+(i+1)+'月</span>'
@@ -1226,11 +1238,11 @@ MFIELDS.forEach(function(f){
   }
   box.innerHTML = '<div class="mhead"><span class="ttl">'+f.label+'・月ごとの内訳</span>'
                 + '<span class="tot" id="'+f.id+'_tot"></span></div>'
+                + '<p class="mnote">1月から12月まで、それぞれ違う金額を入れられます。上の年額の欄を直接書き換えると、12か月へ均等に割り振られます。</p>'
                 + '<div class="mgrid">'+cells+'</div>'
                 + '<div class="acts">'
                 + '<button type="button" class="btn" data-a="copy">1月の額を全月にコピー</button>'
                 + '<button type="button" class="btn" data-a="clear">すべて0にする</button></div>';
-  $('incomeBody').appendChild(box);
 
   Array.prototype.forEach.call(box.querySelectorAll('input[data-m]'), function(el){
     const i = Number(el.dataset.m);
@@ -1238,6 +1250,7 @@ MFIELDS.forEach(function(f){
       monthly[f.id].v[i] = parseInt((el.value||'').replace(/[^0-9]/g,'')||'0',10)||0;
       syncAnnual(f);   // 再計算はフォーム全体の input で走る
     });
+    el.addEventListener('focus', function(){ if(monthly[f.id].v[i]===0) el.select(); });
     el.addEventListener('blur', function(){ el.value = monthly[f.id].v[i].toLocaleString('ja-JP'); });
   });
   box.querySelector('[data-a=copy]').addEventListener('click', function(){
@@ -1249,6 +1262,8 @@ MFIELDS.forEach(function(f){
     fillMonthInputs(f); syncAnnual(f); render();
   });
   $(f.id+'_btn').addEventListener('click', function(){ setMonthly(f, !monthly[f.id].on); });
+  // 年額の欄はいつでも編集できる。月ごと入力中に書き換えたら均等割りにする
+  $(f.id).addEventListener('input', function(){ if(monthly[f.id].on) spreadAnnual(f); });
 });
 
 const anyMonthly = function(){ return MFIELDS.some(function(f){ return monthly[f.id].on; }); };
