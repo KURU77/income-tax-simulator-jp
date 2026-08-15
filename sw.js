@@ -4,7 +4,7 @@
    画面はキャッシュを先に返し、裏でサーバーに確認する（stale-while-revalidate）。
    こうすると圏外でも、電波が弱くて応答が返らない場所でも、待たされずに開ける。
    新しい版が見つかったときはページへ知らせ、利用者が再読み込みできるようにする。 */
-const CACHE = 'shotoku-sim-v10';
+const CACHE = 'shotoku-sim-v11';
 const INDEX = './index.html';
 const ASSETS = [
   './',
@@ -54,12 +54,22 @@ self.addEventListener('fetch', function (e) {
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
 
   if (req.mode === 'navigate') {
-    const cachedP = caches.match(INDEX);
+    // 開こうとしているページ自体を探す。プライバシーポリシーなど本体以外の
+    // ページもあるため、ここで index.html を決め打ちしてはいけない。
+    // クエリは無視して1つの鍵にまとめる（?v=... で別物として溜まるのを防ぐ）。
+    const key = new URL(req.url);
+    key.search = '';
+    key.hash = '';
+    const keyHref = key.href;
+
+    const cachedP = caches.match(keyHref).then(function (hit) {
+      return hit || caches.match(INDEX);   // 未知のパスは本体を返す
+    });
     const freshP = fetch(req, { cache: 'no-cache' }).then(function (res) {
       if (res && res.ok) {
         const copy = res.clone();
         return caches.open(CACHE)
-          .then(function (c) { return c.put(INDEX, copy); })
+          .then(function (c) { return c.put(keyHref, copy); })
           .then(function () { return res; });
       }
       return res;
@@ -76,7 +86,7 @@ self.addEventListener('fetch', function (e) {
     e.respondWith(
       cachedP.then(function (cached) {
         if (cached) return cached;
-        return freshP.catch(function () { return caches.match('./'); });
+        return freshP.catch(function () { return caches.match(INDEX); });
       })
     );
     return;
