@@ -197,6 +197,19 @@ input:focus-visible,select:focus-visible,button:focus-visible{
 }
 .months .mnote{font-size:11px; color:var(--ink-3); line-height:1.6; margin:-4px 0 0}
 .saveinfo{font-size:12px; color:var(--ink-3); line-height:1.7; margin:0}
+
+/* ---------- オフライン表示・更新のお知らせ（Web版のみ） ---------- */
+.netnotice{
+  display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px;
+  margin:0 0 14px; padding:11px 14px; border-radius:2px; font-size:13px; line-height:1.6;
+  background:var(--warn-soft); color:var(--warn); border:1px solid var(--warn);
+}
+.netnotice[hidden]{display:none}
+.netnotice button{
+  margin-left:auto; flex:none; font:inherit; font-size:12px; font-weight:700; cursor:pointer;
+  padding:8px 13px; min-height:40px; border:0; border-radius:2px;
+  background:var(--warn); color:var(--card);
+}
 .months .mgrid{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:9px}
 .months .m{display:grid; gap:2px; min-width:0}
 .months .m > span{font-size:11px; color:var(--ink-3); letter-spacing:.04em}
@@ -2022,11 +2035,41 @@ render();
 
 <script>
 /* ホーム画面に追加したあとオフラインでも開けるようにする */
-if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('sw.js').catch(function () {});
-  });
-}
+(function () {
+  var box = null;
+  function notice(html, onClick) {
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'netnotice';
+      var wrap = document.querySelector('.wrap') || document.body;
+      wrap.insertBefore(box, wrap.firstChild);
+    }
+    box.innerHTML = html;
+    box.hidden = false;
+    var btn = box.querySelector('button');
+    if (btn && onClick) btn.addEventListener('click', onClick);
+  }
+  function paintNet() {
+    if (navigator.onLine) { if (box && box.dataset.kind === 'offline') box.hidden = true; return; }
+    notice('<span>オフラインで表示しています。計算も保存もこのまま使えます。</span>');
+    box.dataset.kind = 'offline';
+  }
+  window.addEventListener('online', paintNet);
+  window.addEventListener('offline', paintNet);
+  paintNet();
+
+  if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+    navigator.serviceWorker.addEventListener('message', function (ev) {
+      if (!ev.data || ev.data.type !== 'update-ready') return;
+      notice('<span>新しい版があります。</span><button type="button">再読み込み</button>',
+             function () { location.reload(); });
+      box.dataset.kind = 'update';
+    });
+  }
+})();
 </script>
 </body>
 </html>
