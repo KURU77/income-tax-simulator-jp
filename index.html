@@ -78,10 +78,17 @@
 }
 
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%; text-size-adjust:100%}
+/* 横方向へは動かさない。clip は hidden と違って
+   スクロール領域を作らないので、sticky な結果パネルも壊れない。
+   overscroll-behavior-x で、端まで来たときの引っぱりや戻る操作への波及も止める。 */
+html{
+  -webkit-text-size-adjust:100%; text-size-adjust:100%;
+  overflow-x:hidden; overflow-x:clip; overscroll-behavior-x:none;
+}
 body{
   margin:0; color:var(--ink); font-family:var(--gothic);
-  font-size:15px; line-height:1.7; overflow-x:hidden;
+  font-size:15px; line-height:1.7; max-width:100%;
+  overflow-x:hidden; overflow-x:clip; overscroll-behavior-x:none;
   background-color:var(--ground);
   background-image:
     repeating-linear-gradient(0deg, var(--grid) 0 1px, transparent 1px 28px),
@@ -365,7 +372,7 @@ table.led td.note{font-size:11px; color:var(--ink-3); padding-top:0; border:0}
 .fvsum{font-size:13px; color:var(--ink-2); text-wrap:balance}
 .fvsum b{color:var(--ink)}
 .fvsum .amt{font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--crit); font-weight:700}
-.chartwrap{position:relative; overflow-x:auto; overflow-y:hidden; padding-bottom:2px}
+.chartwrap{position:relative; overflow-x:auto; overflow-y:hidden; padding-bottom:2px; overscroll-behavior-x:contain}
 .fvchart{display:block; width:100%; min-width:340px; height:auto; touch-action:pan-y}
 .fvtip{
   position:absolute; left:0; top:0; pointer-events:none; opacity:0; z-index:2;
@@ -375,7 +382,7 @@ table.led td.note{font-size:11px; color:var(--ink-3); padding-top:0; border:0}
   font-family:var(--mono); font-variant-numeric:tabular-nums;
 }
 .fvtip b{font-family:var(--gothic)}
-.segwrap{overflow-x:auto}
+.segwrap{overflow-x:auto; overscroll-behavior-x:contain}
 table.seg{width:100%; border-collapse:collapse; font-size:13px; min-width:420px}
 table.seg th{
   text-align:left; font-size:11px; letter-spacing:.06em; color:var(--ink-3); font-weight:600;
@@ -1360,7 +1367,9 @@ function setMonthly(f, on){
   $(f.id+'_btn').textContent = on ? '年額でまとめて入力' : '月ごとに入力';
   syncAnnual(f);
   render();
-  if(on) $(f.id+'_m').querySelector('input[data-m]').focus();
+  // 自動でフォーカスするとスマートフォンでキーボードが出てしまうので、
+  // 位置だけ見せて、入力するかどうかは利用者に委ねる
+  if(on) $(f.id+'_m').scrollIntoView({block:'nearest', behavior:'smooth'});
 }
 MFIELDS.forEach(function(f){
   const box = $(f.id+'_m');

@@ -4,7 +4,7 @@
    画面はキャッシュを先に返し、裏でサーバーに確認する（stale-while-revalidate）。
    こうすると圏外でも、電波が弱くて応答が返らない場所でも、待たされずに開ける。
    新しい版が見つかったときはページへ知らせ、利用者が再読み込みできるようにする。 */
-const CACHE = 'shotoku-sim-v11';
+const CACHE = 'shotoku-sim-v12';
 const INDEX = './index.html';
 const ASSETS = [
   './',
