@@ -397,6 +397,48 @@ table.seg td.loss{color:var(--crit)}
 table.seg tr.cur td{background:var(--accent-soft); color:var(--ink); font-weight:700}
 table.seg th:last-child,table.seg td:last-child{padding-right:0}
 
+/* ---------- ホームのメニューと画面切り替え ---------- */
+.cols[hidden]{display:none}
+.menu{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(258px,1fr));
+  gap:10px; padding:16px 20px 20px;
+}
+.menu[hidden]{display:none}
+.mitem{
+  display:flex; align-items:center; gap:12px; width:100%; min-height:66px;
+  padding:12px 13px; text-align:left; cursor:pointer; font:inherit;
+  background:var(--card-2); color:var(--ink); border:1px solid var(--rule); border-radius:2px;
+}
+.mitem:hover{border-color:var(--accent); background:var(--accent-soft)}
+.mitem .ic{
+  flex:none; width:38px; height:38px; display:grid; place-items:center; border-radius:2px;
+  background:var(--accent); color:var(--on-accent);
+  font-family:var(--mincho); font-size:17px; font-weight:600; letter-spacing:0;
+}
+.mitem .tx{display:grid; gap:2px; min-width:0}
+.mitem .nm{font-size:14px; font-weight:700; color:var(--ink)}
+.mitem .sm{
+  font-size:12px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.mitem .ar{margin-left:auto; flex:none; color:var(--ink-3); font-size:18px; line-height:1}
+.viewbar{
+  display:flex; align-items:center; gap:10px; padding:8px 12px; position:sticky; top:0; z-index:6;
+  background:var(--card-2); border-bottom:1px solid var(--rule);
+}
+.viewbar[hidden]{display:none}
+.viewbar button{
+  font:inherit; font-size:13px; font-weight:700; padding:9px 10px; min-height:44px;
+  background:transparent; border:0; color:var(--accent); cursor:pointer;
+}
+.viewbar .vt{font-family:var(--mincho); font-size:15px; font-weight:600; letter-spacing:.08em; color:var(--ink)}
+/* 明細と試算枠は結果パネルから移したので、余白を打ち消す */
+.sect-body > .parentcard,.sect-body > .whatif{margin:0}
+.sect-body > .detail{padding:0}
+/* 狭い画面では、ホーム以外で結果パネルを隠す（下の固定バーで要点は見える） */
+@media (max-width:999px){
+  body:not([data-screen="home"]) .side{display:none}
+}
+
 /* ---------- 入力中も結果が見える固定バー（狭い画面のみ） ---------- */
 .mbar{display:none}
 @media (max-width:999px){
@@ -434,6 +476,7 @@ table.seg th:last-child,table.seg td:last-child{padding-right:0}
   .seal{width:54px; height:54px; font-size:14px; top:14px; right:14px}
   .walls{padding:16px}
   .detail{padding:2px 16px 18px}
+  .menu{grid-template-columns:1fr; padding:12px 12px 16px; gap:8px}
   .months .mgrid{grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
   .months{padding:12px 12px 14px}
   .dep{grid-template-columns:1fr 1fr; gap:10px; padding:14px 0}
@@ -466,7 +509,13 @@ footer.fine ul{margin:0; padding-left:1.2em}
   <div class="cols">
     <!-- ============ 入力 ============ -->
     <form class="panel" id="form" autocomplete="off">
-      <section class="sect">
+      <div class="viewbar" id="viewbar" hidden>
+        <button type="button" id="backBtn">← ホーム</button>
+        <span class="vt" id="viewTitle"></span>
+      </div>
+      <div class="menu" id="menu"></div>
+
+      <section class="sect" data-view="income">
         <div class="sect-head"><h2>収入</h2><span class="hint">年間の金額（円）</span></div>
         <div class="sect-body" id="incomeBody">
           <div class="row wide">
@@ -514,7 +563,7 @@ footer.fine ul{margin:0; padding-left:1.2em}
         </div>
       </section>
 
-      <section class="sect">
+      <section class="sect" data-view="you">
         <div class="sect-head"><h2>あなたの状況</h2><span class="hint">控除・非課税ラインに影響します</span></div>
         <div class="sect-body">
           <div class="grid2">
@@ -567,7 +616,7 @@ footer.fine ul{margin:0; padding-left:1.2em}
         </div>
       </section>
 
-      <section class="sect">
+      <section class="sect" data-view="spouse">
         <div class="sect-head"><h2>配偶者</h2><span class="hint">あなたが受ける配偶者控除の判定</span></div>
         <div class="sect-body">
           <label class="check"><input type="checkbox" id="spExists"> 生計を一にする配偶者がいる</label>
@@ -601,7 +650,7 @@ footer.fine ul{margin:0; padding-left:1.2em}
         </div>
       </section>
 
-      <section class="sect">
+      <section class="sect" data-view="deps">
         <div class="sect-head"><h2>扶養親族</h2><span class="hint">配偶者以外・1人ずつ</span></div>
         <div class="sect-body">
           <div id="depList"></div>
@@ -610,7 +659,7 @@ footer.fine ul{margin:0; padding-left:1.2em}
         </div>
       </section>
 
-      <section class="sect">
+      <section class="sect" data-view="deduction">
         <div class="sect-head"><h2>所得控除</h2><span class="hint">年間の支払額・控除額（円）</span></div>
         <div class="sect-body">
           <div class="grid2">
@@ -638,7 +687,7 @@ footer.fine ul{margin:0; padding-left:1.2em}
         </div>
       </section>
 
-      <section class="sect">
+      <section class="sect" data-view="settings">
         <div class="sect-head"><h2>試算の設定</h2></div>
         <div class="sect-body">
           <div class="grid2">
@@ -660,10 +709,35 @@ footer.fine ul{margin:0; padding-left:1.2em}
           <div><button type="button" class="btn" id="resetBtn">入力内容をリセット</button></div>
         </div>
       </section>
+
+      <section class="sect" data-view="detail">
+        <div class="sect-head"><h2>税額の明細と試算枠</h2><span class="hint">あと稼いだ場合も試せます</span></div>
+        <div class="sect-body">
+          <div class="parentcard" id="parentCard" hidden></div>
+
+          <div class="whatif">
+            <div class="wi-top"><span class="wi-ttl">試算枠</span><span class="wi-sub">あと稼いだ場合を試す</span></div>
+            <div class="wi-fields">
+              <label class="wi-f"><span>給与であと</span>
+                <input class="yen" type="text" inputmode="numeric" id="tryKyuyo" value="0" aria-label="給与で追加で稼ぐ金額"></label>
+              <label class="wi-f"><span>業務委託であと</span>
+                <input class="yen" type="text" inputmode="numeric" id="tryJigyo" value="0" aria-label="業務委託で追加で稼ぐ金額"></label>
+            </div>
+            <div class="wi-acts">
+              <button type="button" class="btn" data-fill="kyuyo">給与を壁の直前まで</button>
+              <button type="button" class="btn" data-fill="jigyo">業務委託を壁の直前まで</button>
+              <button type="button" class="btn" data-fill="clear">クリア</button>
+            </div>
+            <div id="tryOut"></div>
+          </div>
+
+          <div class="detail" id="detail"></div>
+        </div>
+      </section>
     </form>
 
     <!-- ============ 結果 ============ -->
-    <aside class="panel side">
+    <aside class="panel side" id="side">
       <div class="hero">
         <p class="eyebrow">headroom</p>
         <div class="big" id="heroNum">—</div>
@@ -672,25 +746,6 @@ footer.fine ul{margin:0; padding-left:1.2em}
       </div>
       <div class="walls" id="walls"></div>
 
-      <div class="parentcard" id="parentCard" hidden></div>
-
-      <div class="whatif">
-        <div class="wi-top"><span class="wi-ttl">試算枠</span><span class="wi-sub">あと稼いだ場合を試す</span></div>
-        <div class="wi-fields">
-          <label class="wi-f"><span>給与であと</span>
-            <input class="yen" type="text" inputmode="numeric" id="tryKyuyo" value="0" aria-label="給与で追加で稼ぐ金額"></label>
-          <label class="wi-f"><span>業務委託であと</span>
-            <input class="yen" type="text" inputmode="numeric" id="tryJigyo" value="0" aria-label="業務委託で追加で稼ぐ金額"></label>
-        </div>
-        <div class="wi-acts">
-          <button type="button" class="btn" data-fill="kyuyo">給与を壁の直前まで</button>
-          <button type="button" class="btn" data-fill="jigyo">業務委託を壁の直前まで</button>
-          <button type="button" class="btn" data-fill="clear">クリア</button>
-        </div>
-        <div id="tryOut"></div>
-      </div>
-
-      <div class="detail" id="detail"></div>
     </aside>
   </div>
 
@@ -700,7 +755,7 @@ footer.fine ul{margin:0; padding-left:1.2em}
   </div>
 
   <!-- ============ 扶養している人の収入と、あなたの負担 ============ -->
-  <section class="panel fvpanel" id="fvPanel" hidden>
+  <section class="panel fvpanel" id="fvPanel" data-view="family" hidden>
     <div class="sect-head">
       <h2>扶養している人の収入と、あなたの手取り</h2>
       <span class="hint">控除が満額のときを基準にした増減</span>
@@ -1640,6 +1695,7 @@ function render(){
   /* --- 親などの負担と、試算枠 --- */
   renderParent(I, R);
   renderTry(I, R, rows, pending);
+  renderMenu(I, R);
 
   /* --- 社会保険の目安 --- */
   const shaho = [];
@@ -1953,6 +2009,96 @@ function restoreState(){
 }
 
 /* ============================================================
+   5c. トップページと画面の切り替え
+   ============================================================ */
+const VIEWS = {
+  home:{t:'ホーム'}, income:{t:'収入'}, you:{t:'あなたの状況'}, spouse:{t:'配偶者'},
+  deps:{t:'扶養親族'}, deduction:{t:'所得控除'}, settings:{t:'試算の設定'},
+  detail:{t:'税額の明細と試算枠'}, family:{t:'扶養している人と手取り'}
+};
+const esc = function(t){
+  return String(t).replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+  });
+};
+const MENU = [
+  {v:'income', ic:'収', nm:'収入', sm:function(I){
+    return '給与 '+yen(I.kyuyoRev)+' ／ 業務委託 '+yen(I.jigyoRev)
+         + (monthly.kyuyoRev.on||monthly.jigyoRev.on ? '（月ごと入力）' : '');
+  }},
+  {v:'you', ic:'本', nm:'あなたの状況', sm:function(I){
+    const a=[I.age+'歳'];
+    if(I.student) a.push('学生');
+    if(I.depOfParent) a.push('親の扶養');
+    if(I.depOfSpouse) a.push('配偶者の扶養');
+    if(I.disab!=='none') a.push('障害者控除');
+    if(I.widow!=='none') a.push('寡婦・ひとり親');
+    return a.join('・');
+  }},
+  {v:'spouse', ic:'配', nm:'配偶者', sm:function(I){
+    return I.spouse ? '給与収入 '+yen(I.spouse.kyuyoRev)+'（'+I.spouse.age+'歳）' : 'いない';
+  }},
+  {v:'deps', ic:'扶', nm:'扶養親族', sm:function(I){
+    return I.deps.length
+      ? I.deps.length+'人（'+I.deps.map(function(d){ return d.age+'歳'; }).join('・')+'）'
+      : '登録なし';
+  }},
+  {v:'deduction', ic:'控', nm:'所得控除', sm:function(I){
+    const t=I.shakai+I.ideco+I.hoken+I.other;
+    return '社会保険料 '+yen(I.shakai)+(t!==I.shakai ? ' ／ 合計 '+yen(t) : '');
+  }},
+  {v:'settings', ic:'設', nm:'試算の設定', sm:function(I){
+    return I.kyuchi+'級地・均等割 '+yen(I.kintou);
+  }},
+  {v:'detail', ic:'税', nm:'税額の明細と試算枠', sm:function(I,R){
+    return '年間の税額 '+yen(R.taxAll);
+  }},
+  {v:'family', ic:'図', nm:'扶養している人と手取り',
+    when:function(I){ return fvSubjects(I).length>0; },
+    sm:function(I){ return '対象 '+fvSubjects(I).length+'人'; }}
+];
+
+function renderMenu(I, R){
+  $('menu').innerHTML = MENU.filter(function(m){ return !m.when || m.when(I); })
+    .map(function(m){
+      return '<button type="button" class="mitem" data-go="'+m.v+'">'
+        + '<span class="ic">'+m.ic+'</span>'
+        + '<span class="tx"><span class="nm">'+esc(m.nm)+'</span>'
+        + '<span class="sm">'+esc(m.sm(I,R))+'</span></span>'
+        + '<span class="ar">›</span></button>';
+    }).join('');
+}
+
+let view = 'home';
+function setView(v){
+  if(!VIEWS[v]) v = 'home';
+  view = v;
+  document.body.dataset.screen = v;
+  Array.prototype.forEach.call(document.querySelectorAll('[data-view]'), function(el){
+    el.hidden = (el.dataset.view !== v);
+  });
+  $('menu').hidden = (v !== 'home');
+  $('viewbar').hidden = (v === 'home');
+  $('viewTitle').textContent = VIEWS[v].t;
+  document.querySelector('.cols').hidden = (v === 'family');
+  window.scrollTo(0, 0);
+  if(v === 'family') renderFuyo(collect());   // 隠れている間は幅が測れないので描き直す
+  updBar();
+}
+function goto(v){
+  const h = '#' + (v || 'home');
+  if(location.hash === h) setView(v); else location.hash = h;
+}
+window.addEventListener('hashchange', function(){
+  setView((location.hash || '#home').slice(1));
+});
+$('menu').addEventListener('click', function(e){
+  const b = e.target.closest('[data-go]');
+  if(b) goto(b.dataset.go);
+});
+$('backBtn').addEventListener('click', function(){ goto('home'); });
+
+/* ============================================================
    6. 初期化
    ============================================================ */
 const DEFAULTS = {kyuyoRev:900000, jigyoRev:600000, keihi:120000, nenkinRev:0, otherInc:0,
@@ -2026,9 +2172,7 @@ if(window.IntersectionObserver){
   new IntersectionObserver(function(es){ heroOn = es[0].isIntersecting; updBar(); }, {threshold:0.2})
     .observe(document.querySelector('.hero'));
 }
-$('mbarBtn').addEventListener('click', function(){
-  document.querySelector('.side').scrollIntoView({behavior:'smooth', block:'start'});
-});
+$('mbarBtn').addEventListener('click', function(){ goto('home'); });
 updBar();
 
 let rzTimer = null;
@@ -2040,6 +2184,7 @@ window.addEventListener('resize', function(){
 if(!restoreState()) syncYear();   // 前回の入力があれば復元する
 drawDeps();
 render();
+setView((location.hash || '#home').slice(1));
 </script>
 
 <script>
