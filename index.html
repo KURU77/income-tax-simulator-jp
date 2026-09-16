@@ -489,6 +489,33 @@ table.seg th:last-child,table.seg td:last-child{padding-right:0}
 .aud-tips{margin:0; padding-left:1.2em; font-size:13px; color:var(--ink-2); line-height:1.85}
 .aud-tips b{color:var(--ink)}
 .aud-links{display:flex; flex-wrap:wrap; gap:8px}
+.aud-hero .eyeb{font-size:11px; letter-spacing:.16em; color:var(--accent); font-weight:700; margin-bottom:2px}
+.aud-hero .ttl{font-family:var(--mincho); font-size:15px; font-weight:600; color:var(--ink); margin-bottom:2px}
+.aud-hero .line{font-size:12px; color:var(--ink-3); margin-top:6px}
+table.cmp{width:100%; border-collapse:collapse; font-size:12.5px; margin-top:12px}
+table.cmp th{font-weight:600; font-size:11px; letter-spacing:.06em; color:var(--ink-3); text-align:right; padding:0 0 5px 8px; border-bottom:1px solid var(--rule-strong); white-space:nowrap}
+table.cmp th:first-child{text-align:left; padding-left:0}
+table.cmp td{padding:6px 0 6px 8px; border-bottom:1px dotted var(--rule); color:var(--ink-2); text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+table.cmp td:first-child{text-align:left; padding-left:0; font-family:var(--gothic); color:var(--ink); white-space:normal}
+table.cmp td.good{color:var(--ok); font-weight:700}
+table.cmp td.bad{color:var(--crit); font-weight:700}
+table.cmp tr.cur td{background:var(--accent-soft)}
+.cmpwrap{overflow-x:auto; overscroll-behavior-x:contain}
+.manual{display:flex; flex-direction:column; gap:8px}
+.manual details{background:var(--card-2); border:1px solid var(--rule); border-radius:2px}
+.manual summary{
+  cursor:pointer; padding:12px 14px; font-size:14px; font-weight:700; color:var(--ink); list-style:none;
+  display:flex; align-items:center; gap:10px; min-height:44px;
+}
+.manual summary::-webkit-details-marker{display:none}
+.manual summary .no{flex:none; width:24px; height:24px; border-radius:50%; display:grid; place-items:center; background:var(--accent); color:var(--on-accent); font-family:var(--mono); font-size:12px}
+.manual summary::after{content:'＋'; margin-left:auto; color:var(--ink-3); font-size:16px}
+.manual details[open] summary::after{content:'－'}
+.manual .mb{padding:0 14px 14px; font-size:13px; line-height:1.85; color:var(--ink-2)}
+.manual .mb b{color:var(--ink)}
+.manual .mb ul{margin:4px 0 0; padding-left:1.2em}
+.manual .mb p{margin:0 0 6px}
+.manual .mb .form{display:block; padding:8px 10px; margin:6px 0; background:var(--card); border:1px dashed var(--rule-strong); border-radius:2px; font-size:12px}
 .dq{display:flex; gap:12px}
 .dq-n{
   flex:none; width:28px; height:28px; border-radius:50%; display:grid; place-items:center;
@@ -1886,6 +1913,118 @@ const kabeNums = function(y){   // 給与だけの単身者の目安
   return y<=2024 ? {it:'103万円', rt:'100万円'} : y===2025 ? {it:'160万円', rt:'110万円'} : {it:'178万円', rt:'119万円'};
 };
 const manOf = function(v){ return (v/10000).toLocaleString('ja-JP',{maximumFractionDigits:1})+'万円'; };
+/* 「ある線まで稼いだとき」の、あなたと親の両方の数字 */
+function scenarioAt(I, R, row, ch){
+  const h = ch==='jigyo' ? row.j : row.k;
+  if(h.over || h.amount===null) return null;
+  const J = ch==='jigyo' ? withTry(I, 0, h.amount) : withTry(I, h.amount, 0);
+  const R2 = calc(J);
+  const pb = parentBurden(J, R2.total);
+  return {add:h.amount, rev:R2.revTotal, total:R2.total, tax:R2.taxAll, tedori:tedori(J,R2),
+          pDiff:pb?pb.diff:0, pDed:pb?pb.now.ded:0, pFull:pb?pb.full.ded:0};
+}
+
+/* 特定扶養親族向け：特定親族特別控除を申請した前提で、最も有利な線を先頭に出す */
+function heroTokutei(I, R, rows){
+  const y = I.year, lim = fuyoLimit(y);
+  const byName = function(nm){ return rows.filter(function(r){ return r.w.name===nm; })[0]; };
+  const modern = y>=2025;
+  const best = modern ? byName('特定親族特別控除（満額）') : byName('親などの扶養控除');
+  const top  = modern ? byName('特定親族特別控除（上限）') : null;
+  if(!best) return '';
+
+  const pbNow = parentBurden(I, R.total);
+  const now = {tedori:tedori(I,R), tax:R.taxAll, pDiff:pbNow?pbNow.diff:0, pDed:pbNow?pbNow.now.ded:0};
+  const sBest = scenarioAt(I, R, best, 'kyuyo');
+  const sTop  = top ? scenarioAt(I, R, top, 'kyuyo') : null;
+  const bestLine = modern ? manOf(revForIncome(850000, y)) : manOf(revForIncome(lim, y));
+  const topLine  = modern ? manOf(revForIncome(1230000, y)) : null;
+
+  let h = '<div class="aud-hero"><div class="eyeb">' + (modern ? '特定親族特別控除を申請した前提' : '扶養控除を受けている前提') + '</div>';
+  if(modern){
+    h += '<div class="ttl">親の控除63万円を満額に保ったまま、あなたが最も多く稼げる線</div>';
+    h += '<div class="lb2">合計所得85万円まで。給与だけなら年収 <b>'+bestLine+'</b> まで</div>';
+  }else{
+    h += '<div class="ttl">親の特定扶養控除63万円を失わずに、あなたが最も多く稼げる線</div>';
+    h += '<div class="lb2">合計所得'+manOf(lim)+'まで。給与だけなら年収 <b>'+bestLine+'</b> まで（この年分には段階がなく、超えると一気に消えます）</div>';
+  }
+  if(best.h.over){
+    h += '<div class="figs"><div class="fig"><span class="lb2">この線は</span><b class="big crit">すでに超えています</b></div></div>';
+    h += '<div class="line">いまの親の控除は '+yen(now.pDed)+'（満額 '+yen(pbNow?pbNow.full.ded:0)+'）、親の税額の増加は '+yen(now.pDiff)+'。</div>';
+  }else{
+    h += '<div class="figs">'
+       + '<div class="fig"><span class="lb2">給与で稼ぐなら</span><b class="big ok">'+amtOf(best.k)+'</b></div>'
+       + '<div class="fig"><span class="lb2">業務委託で稼ぐなら</span><b class="big ok">'+amtOf(best.j)+'</b></div></div>';
+  }
+
+  // あなたと親の両方から見た比較表
+  const cell = function(v, cls){ return '<td'+(cls?' class="'+cls+'"':'')+'>'+yen(v)+'</td>'; };
+  h += '<div class="cmpwrap"><table class="cmp"><tr><th>あなたが稼ぐ額</th><th>あなたの手取り</th><th>親の控除</th><th>親の税額の増加</th><th>世帯で残る額</th></tr>';
+  h += '<tr class="cur"><td>いま（'+yen(R.revTotal)+'）</td>'+cell(now.tedori)+cell(now.pDed)+cell(now.pDiff, now.pDiff>0?'bad':'')+cell(now.tedori-now.pDiff)+'</tr>';
+  if(sBest){
+    h += '<tr><td>'+(modern?'満額の線まで':'扶養の線まで')+'（'+yen(sBest.rev)+'）</td>'+cell(sBest.tedori,'good')+cell(sBest.pDed)+cell(sBest.pDiff, sBest.pDiff>0?'bad':'')+cell(sBest.tedori-sBest.pDiff,'good')+'</tr>';
+  }
+  if(sTop){
+    h += '<tr><td>控除がなくなる直前まで（'+yen(sTop.rev)+'）</td>'+cell(sTop.tedori)+cell(sTop.pDed)+cell(sTop.pDiff, sTop.pDiff>0?'bad':'')+cell(sTop.tedori-sTop.pDiff)+'</tr>';
+  }
+  if(!modern && sBest){
+    // 制度がない年分は、線を1円超えた瞬間の落ち込みを見せる
+    const J1 = withTry(I, best.k.amount+1, 0), R1 = calc(J1), pb1 = parentBurden(J1, R1.total);
+    const t1 = tedori(J1,R1), d1 = pb1?pb1.diff:0;
+    h += '<tr><td>線を1円超えると（'+yen(R1.revTotal)+'）</td>'+cell(t1)+cell(pb1?pb1.now.ded:0,'bad')+cell(d1,'bad')+cell(t1-d1,'bad')+'</tr>';
+  }
+  h += '</table></div>';
+
+  if(modern){
+    h += '<div class="line">満額の線を超えても控除は段階的に減るだけなので、世帯で残る額は増え続けます。ただし親の税額は増えるので、超える前に親に伝えておくと申告で揉めません。'
+       + (topLine ? '上限は給与だけなら年収 '+topLine+' です。' : '')+'</div>';
+  }else{
+    h += '<div class="line">この年分には特定親族特別控除がなく、線を1円でも超えると親の控除63万円（住民税45万円）が丸ごとなくなります。線の手前で止めるのが最も有利です。</div>';
+  }
+  return h + '</div>';
+}
+
+/* 特定親族特別控除を受けるための手順 */
+function manualTokutei(I){
+  const y = I.year, lim = fuyoLimit(y);
+  const revLim = manOf(revForIncome(lim, y)), rev123 = manOf(revForIncome(1230000, y));
+  const step = function(no, ttl, body, open){
+    return '<details'+(open?' open':'')+'><summary><span class="no">'+no+'</span>'+ttl+'</summary><div class="mb">'+body+'</div></details>';
+  };
+  if(y<2025){
+    return step(1, 'この年分には特定親族特別控除がありません',
+      '<p>特定親族特別控除は<b>令和7年分</b>（令和7年12月の年末調整）から始まった制度です。令和'+(y-2018)+'年分では、あなたの合計所得が <b>'+manOf(lim)+'</b>（給与だけなら年収 '+revLim+'）以下なら親が<b>特定扶養控除63万円</b>を受けられ、超えると控除はありません。</p>'
+      + '<p>年分を令和7年以降に切り替えると、その年分の手順が表示されます。</p>', true);
+  }
+  return step(1, '対象になるか確認する',
+      '<p>親（扶養している人）が特定親族特別控除を受けられるのは、あなたが次のすべてに当てはまるときです。</p><ul>'
+      + '<li>その年の12月31日時点で <b>19歳以上23歳未満</b></li>'
+      + '<li>親と<b>生計を一にしている</b>（同居していなくても、仕送りを受けていれば該当）</li>'
+      + '<li>その年の合計所得が <b>'+manOf(lim)+'超〜123万円以下</b>（給与だけなら年収 '+revLim+'超〜'+rev123+'以下）</li>'
+      + '<li>親の配偶者ではない。親の青色事業専従者として給与を受けていない・白色事業専従者でもない</li>'
+      + '<li>ほかの人の扶養親族や控除対象配偶者になっていない</li></ul>'
+      + '<p>合計所得が '+manOf(lim)+' 以下のときは、こちらではなく従来の<b>扶養控除（特定扶養親族・63万円）</b>の対象です。どちらか一方しか受けられません。</p>', true)
+    + step(2, '申請するのは親（扶養している人）',
+      '<p><b>親が会社員・公務員なら年末調整で。</b>勤務先から配られる次の申告書の「特定親族特別控除」の欄に記入して提出します。</p>'
+      + '<span class="form">給与所得者の基礎控除申告書 兼 給与所得者の配偶者控除等申告書 兼 給与所得者の特定親族特別控除申告書 兼 所得金額調整控除申告書</span>'
+      + '<p>記入するのはあなたの氏名・生年月日・マイナンバー・親との続柄・住所と、<b>その年の所得の見込額</b>です。添付書類は原則ありません（学生証なども不要）。</p>'
+      + '<p><b>親が自営業のとき、または年末調整で出し忘れたとき</b>は、親の確定申告（翌年2月16日〜3月15日）で申告書に記載すれば受けられます。</p>')
+    + step(3, 'あなたがすること',
+      '<ul><li>その年の<b>給与収入の見込額</b>を親に伝える。給与明細の支給額の合計か、年末近くなら源泉徴収票の「支払金額」です</li>'
+      + '<li>年の途中で見込みが変わったら親に伝え、申告書を出し直してもらう。年末調整のあとに変わった場合は、親が確定申告で直します</li>'
+      + '<li>学生なら、あなた自身の<b>勤労学生控除</b>は、あなたの勤務先に出す「扶養控除等（異動）申告書」の勤労学生の欄に記入します（親の申告とは別の手続きです）</li>'
+      + '<li>親の申告書の控除額は、このアプリの「税額の明細」にある<b>親の負担</b>の控除額と一致するはずです。違うときは所得の見込額を見直してください</li></ul>')
+    + step(4, 'いつから・どう反映されるか',
+      '<ul><li>令和7年分（<b>令和7年12月の年末調整</b>）から使えます</li>'
+      + '<li>毎月の給与天引きに反映されるかは勤務先の扱いによります。最終的には年末調整または確定申告で正しく計算され、引きすぎていれば戻ってきます</li>'
+      + '<li>住民税にも反映されます（令和8年度分から）。親の住民税は、翌年6月からの徴収額に効きます。所得税とは控除額が違い、満額は45万円です</li></ul>')
+    + step(5, 'よくある間違い',
+      '<ul><li><b>扶養控除と特定親族特別控除は同時に受けられません。</b>所得が '+manOf(lim)+' 以下なら扶養控除、超えたら特定親族特別控除です。境目で申告書の書く欄が変わります</li>'
+      + '<li><b>健康保険の扶養（130万円）は別の判定です。</b>税の控除が残っていても、年収130万円（見込み）を超えると家族の健康保険から外れ、自分で国民健康保険や勤務先の保険に入ることになります</li>'
+      + '<li>親の合計所得がいくらでも、特定親族特別控除の額は変わりません（配偶者特別控除のような本人所得による減額はありません）。ただし親の所得が高いほど、控除が減ったときの税額の増え方は大きくなります</li>'
+      + '<li>合計所得123万円を超えると控除は0になります。年末に駆け込みで働いて超えないよう、上の表で確認してください</li></ul>');
+}
+
 const AUD = {
   ippan: {
     t:'一般向け', ic:'一', who:'誰の扶養にも入っていない人',
@@ -1925,6 +2064,7 @@ const AUD = {
   },
   tokutei: {
     t:'特定扶養親族向け', ic:'特', who:'19〜22歳で親の扶養に入っている人',
+    hero:heroTokutei, manual:manualTokutei, manualTitle:'特定親族特別控除を受けるための手順',
     walls:['特定親族特別控除（満額）','特定親族特別控除（上限）','親などの扶養控除','勤労学生控除','住民税・均等割','住民税・所得割','所得税'],
     links:['you','income','detail'],
     why:function(I){ return I.age+'歳で親の扶養に入っているので特定扶養親族です。親が受ける控除が大きい（63万円）分、外れたときの影響も大きくなります。'; },
@@ -1962,7 +2102,9 @@ function renderAudience(I, R, rows){
     });
     const pend = sel.filter(function(r){ return !r.h.over && r.h.amount!==null; })
                     .sort(function(x,y){ return x.h.amount-y.h.amount; });
-    if(pend.length){
+    if(A.hero){
+      h += A.hero(I, R, rows);
+    }else if(pend.length){
       const p = pend[0];
       h += '<div class="aud-hero"><div class="lb2">いちばん近い線「'+p.w.name+'」まで</div><div class="figs">'
          + '<div class="fig"><span class="lb2">給与で稼ぐなら</span><b class="big ok">'+amtOf(p.k)+'</b></div>'
@@ -1986,6 +2128,7 @@ function renderAudience(I, R, rows){
     }
     h += '<h3 class="aud-h3">知っておきたいこと</h3><ul class="aud-tips">'
        + A.tips(I).map(function(x){ return '<li>'+x+'</li>'; }).join('')+'</ul>';
+    if(A.manual) h += '<h3 class="aud-h3">'+A.manualTitle+'</h3><div class="manual">'+A.manual(I)+'</div>';
     h += '<div class="aud-links">'
        + A.links.map(function(v){ return '<button type="button" class="btn" data-go="'+v+'">'+VIEWS[v].t+'</button>'; }).join('')
        + '<button type="button" class="btn" data-go="home">すべてのメニュー</button></div>';
