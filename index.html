@@ -506,6 +506,12 @@ table.cmp tr.cur td{background:var(--accent-soft)}
 table.cmp th.c{text-align:right}
 table.cmp td.lbl{font-family:var(--gothic); color:var(--ink-2); white-space:normal; text-align:left; padding-left:0; min-width:7em}
 .aud-hero .zero{font-size:12px; color:var(--ok); font-weight:700; margin-top:8px}
+.aud-hero .zline{
+  margin-top:10px; padding:10px 12px; font-size:12.5px; line-height:1.75; color:var(--ink-2);
+  background:var(--card); border:1px solid var(--rule); border-left:3px solid var(--ok); border-radius:2px;
+}
+.aud-hero .zline b{color:var(--ink)}
+.aud-hero .zline .why{display:block; margin-top:4px; color:var(--ink-3); font-size:12px}
 .manual{display:flex; flex-direction:column; gap:8px}
 .manual details{background:var(--card-2); border:1px solid var(--rule); border-radius:2px}
 .manual summary{
@@ -1949,9 +1955,21 @@ function heroBurden(I, R, rows, cfg){
     sCliff = {rev:R1.revTotal, tedori:tedori(J1,R1), pDiff:pb1?pb1.diff:0, pDed:pb1?pb1.now.ded:0};
   }
 
+  // 「追加負担が0円」の線は、控除額が満額の線と一致するとは限らない。
+  // 扶養控除（特定18万円・一般5万円）は住民税の調整控除の対象だが、
+  // 特定親族特別控除と（令和7年分以降の）配偶者特別控除は対象外のため、
+  // 控除額が同じままでも、切り替わった瞬間に調整控除の分だけ税額が増えることがある。
+  // そこで「負担が0のまま」を条件に、実際の線を二分探索で求める。
+  const zeroTest = function(r, J){ const pb = parentBurden(J, r.total); return !pb || pb.diff===0; };
+  const zk = headroom(I, zeroTest, 'kyuyo'), zj = headroom(I, zeroTest, 'jigyo');
+  const zeroRow = {w:{name:who+'の追加負担が0円の線'}, k:zk, j:zj, h:zk};
+  const sZero = scenarioAt(I, R, zeroRow, 'kyuyo');
+  const zeroDiffers = sZero && sBest && sZero.rev < sBest.rev - 1;   // 満額の線より手前で負担が出はじめる
+  const gapCost = zeroDiffers ? sBest.pDiff : 0;                       // 満額の線での負担額（調整控除の分）
+
   let h = '<div class="aud-hero"><div class="eyeb">'+cfg.eyeb+'</div>';
   h += '<div class="ttl">'+cfg.title+'</div>';
-  h += '<div class="lb2">'+who+'の追加負担が <b>0円</b> で済むのは、あなたの合計所得 <b>'+manOf(cfg.bestIncome)+'</b> まで'
+  h += '<div class="lb2">控除が満額のまま稼げるのは、あなたの合計所得 <b>'+manOf(cfg.bestIncome)+'</b> まで'
      + '（給与だけなら年収 <b>'+manOf(revForIncome(cfg.bestIncome, I.year))+'</b> まで）。'+(cfg.after||'')+'</div>';
   if(best.h.over){
     h += '<div class="figs"><div class="fig"><span class="lb2">この線は</span><b class="big crit">すでに超えています</b></div></div>';
@@ -1961,10 +1979,22 @@ function heroBurden(I, R, rows, cfg){
        + '<div class="fig"><span class="lb2">給与で稼ぐなら</span><b class="big ok">'+amtOf(best.k)+'</b></div>'
        + '<div class="fig"><span class="lb2">業務委託で稼ぐなら</span><b class="big ok">'+amtOf(best.j)+'</b></div></div>';
   }
+  // 負担0円の線（満額の線と違うときだけ、その理由とともに出す）
+  if(zk.over){
+    h += '<div class="zline"><b>'+who+'の追加負担が0円で済む線</b>はすでに超えています（いまの増加 '+yen(now.pDiff)+'）。</div>';
+  }else if(zeroDiffers){
+    h += '<div class="zline"><b>'+who+'の追加負担が0円で済む線</b>はそれより手前で、給与だけなら年収 <b>'+manOf(sZero.rev)+'</b>（合計所得 '+manOf(sZero.total)+'）までです。'
+       + '給与で稼ぐなら <b>'+amtOf(zk)+'</b>、業務委託で稼ぐなら <b>'+amtOf(zj)+'</b>。'
+       + '<span class="why">そこから満額の線までの間は控除額は変わりませんが、'+(who==='配偶者'?'配偶者控除':'扶養控除')+'にだけ付いている住民税の<b>調整控除</b>が外れるため、'
+       + who+'の住民税が <b>'+yen(gapCost)+'</b> 増えます（'+who+'の課税所得が200万円を超えていれば、この増加はほぼ生じません）。</span></div>';
+  }else if(sBest){
+    h += '<div class="zline"><b>'+who+'の追加負担が0円で済む線</b>も同じです。満額の線まで '+who+'の税額は増えません。</div>';
+  }
 
   // あなたと扶養している人の両方から見た比較（狭い画面に収まるよう、列＝場面・行＝項目）
   const cols = [{k:'いま', s:now}];
-  if(sBest) cols.push({k:'負担0の線', s:sBest});
+  if(zeroDiffers && sZero) cols.push({k:'負担0の線', s:sZero});
+  if(sBest) cols.push({k:zeroDiffers?'満額の線':'負担0の線', s:sBest});
   if(sTop)  cols.push({k:'控除0の直前', s:sTop});
   if(sCliff) cols.push({k:'1円超えると', s:sCliff, bad:true});
   const rowsT = [
@@ -1972,7 +2002,7 @@ function heroBurden(I, R, rows, cfg){
     ['あなたの手取り', function(c){ return yen(c.s.tedori); }],
     [who+'の控除',    function(c){ return yen(c.s.pDed); }],
     [who+'の税額の増加', function(c){ return yen(c.s.pDiff); }, function(c){ return c.s.pDiff>0?'bad':''; }],
-    ['世帯で残る額',  function(c){ return yen(c.s.tedori-c.s.pDiff); }, function(c){ return c.bad?'bad':(c.k==='負担0の線'?'good':''); }]
+    ['世帯で残る額',  function(c){ return yen(c.s.tedori-c.s.pDiff); }, function(c){ return c.bad?'bad':(c.k==='負担0の線'||c.k==='満額の線'?'good':''); }]
   ];
   h += '<div class="cmpwrap"><table class="cmp"><tr><th></th>'+cols.map(function(c){ return '<th class="c">'+c.k+'</th>'; }).join('')+'</tr>';
   rowsT.forEach(function(r){
@@ -2000,6 +2030,7 @@ function heroTokutei(I, R, rows){
       best:'特定親族特別控除（満額）', top:'特定親族特別控除（上限）', bestIncome:850000,
       note:'満額の線を超えても控除は段階的に減るだけなので、世帯で残る額は増え続けます。ただし親の税額は増えるので、超える前に親に伝えておくと申告で揉めません。'
           + '上限は給与だけなら年収 '+manOf(revForIncome(1230000,y))+' です。'
+          + '扶養控除から特定親族特別控除に切り替わる線（合計所得'+manOf(lim)+'）では、控除額は63万円のままでも住民税の調整控除（最大9,000円）が外れます。'
     });
   }
   return heroBurden(I, R, rows, {
