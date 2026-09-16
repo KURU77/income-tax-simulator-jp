@@ -439,6 +439,79 @@ table.seg th:last-child,table.seg td:last-child{padding-right:0}
   body:not([data-screen="home"]) .side{display:none}
 }
 
+/* ---------- タイプ別ページ・判定・ホームのタイプカード ---------- */
+.ic{
+  flex:none; width:38px; height:38px; display:grid; place-items:center; border-radius:2px;
+  background:var(--accent); color:var(--on-accent); font-family:var(--mincho); font-size:17px; font-weight:600;
+}
+.lnk{font:inherit; font-size:inherit; background:none; border:0; padding:0; color:var(--accent); text-decoration:underline; cursor:pointer}
+.audcard{
+  margin:16px 20px 0; padding:14px 15px; display:flex; flex-direction:column; gap:10px;
+  background:var(--accent-soft); border:1px solid var(--rule); border-left:3px solid var(--accent); border-radius:2px;
+}
+.audcard[hidden]{display:none}
+.ac-row{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.ac-tx{flex:1 1 170px; min-width:0}
+.ac-l{font-size:11px; letter-spacing:.12em; color:var(--ink-3)}
+.ac-t{font-family:var(--mincho); font-size:17px; font-weight:600; color:var(--ink)}
+.ac-who{font-size:12px; color:var(--ink-2)}
+.ac-chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{
+  font:inherit; font-size:12px; padding:7px 11px; min-height:36px; cursor:pointer;
+  background:var(--card); color:var(--ink-2); border:1px solid var(--rule); border-radius:999px;
+}
+.chip.on{background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:700}
+.aud{gap:14px}
+.aud-head{display:flex; gap:12px; align-items:center}
+.aud-t{font-family:var(--mincho); font-size:18px; font-weight:600; color:var(--ink)}
+.aud-who{font-size:12px; color:var(--ink-2)}
+.aud-note{
+  padding:10px 12px; font-size:13px; line-height:1.7; border-radius:2px;
+  background:var(--warn-soft); color:var(--warn); border:1px solid var(--warn);
+}
+.aud-note b{color:var(--warn)}
+.aud-hero{padding:14px 15px; background:var(--card-2); border:1px solid var(--rule); border-radius:2px}
+.aud-hero .lb2{font-size:12px; color:var(--ink-2)}
+.aud-hero .figs{display:flex; flex-wrap:wrap; gap:10px 26px; margin-top:6px}
+.aud-hero .fig{display:grid; gap:1px}
+.aud-hero .big{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:clamp(22px,3.6vw,28px); font-weight:700; line-height:1.15}
+.aud-hero .big.ok{color:var(--ok)} .aud-hero .big.crit{color:var(--crit)}
+.aud .walls{padding:0}
+.aud-burden{
+  font-size:13px; line-height:1.7; padding:10px 12px; color:var(--ink-2);
+  background:var(--card-2); border:1px solid var(--rule); border-radius:2px;
+}
+.aud-burden .bad{color:var(--crit); font-weight:700}
+.aud-h3{
+  font-family:var(--mincho); font-size:13px; letter-spacing:.14em; font-weight:600; color:var(--ink-2);
+  margin:4px 0 0; padding-bottom:5px; border-bottom:1px solid var(--rule-strong);
+}
+.aud-tips{margin:0; padding-left:1.2em; font-size:13px; color:var(--ink-2); line-height:1.85}
+.aud-tips b{color:var(--ink)}
+.aud-links{display:flex; flex-wrap:wrap; gap:8px}
+.dq{display:flex; gap:12px}
+.dq-n{
+  flex:none; width:28px; height:28px; border-radius:50%; display:grid; place-items:center;
+  background:var(--accent); color:var(--on-accent); font-family:var(--mono); font-weight:700; font-size:13px;
+}
+.dq-b{flex:1; min-width:0; display:grid; gap:6px}
+.dq-opts{display:grid; gap:8px}
+.dq-opt{
+  display:flex; align-items:flex-start; gap:10px; padding:11px 12px; cursor:pointer;
+  background:var(--card-2); border:1px solid var(--rule); border-radius:2px; font-size:14px; color:var(--ink); line-height:1.5;
+}
+.dq-opt:has(input:checked){border-color:var(--accent); background:var(--accent-soft)}
+.dq-opt input{margin-top:4px; width:16px; height:16px; flex:none; accent-color:var(--accent)}
+.dq-opt .sub{display:block; font-size:11px; color:var(--ink-3)}
+.dq-res{
+  display:flex; flex-direction:column; gap:10px; padding:14px 15px; border-radius:2px;
+  background:var(--accent-soft); border:1px solid var(--rule); border-left:3px solid var(--accent);
+}
+.dq-res[hidden]{display:none}
+.dq-type{display:flex; align-items:center; gap:12px}
+.dq-type .nm{font-family:var(--mincho); font-size:17px; font-weight:600; color:var(--ink)}
+.dq-type .sm{font-size:12px; color:var(--ink-2)}
+
 /* ---------- 入力中も結果が見える固定バー（狭い画面のみ） ---------- */
 .mbar{display:none}
 @media (max-width:999px){
@@ -513,6 +586,7 @@ footer.fine ul{margin:0; padding-left:1.2em}
         <button type="button" id="backBtn">← ホーム</button>
         <span class="vt" id="viewTitle"></span>
       </div>
+      <div class="audcard" id="audCard"></div>
       <div class="menu" id="menu"></div>
 
       <section class="sect" data-view="income">
@@ -601,7 +675,7 @@ footer.fine ul{margin:0; padding-left:1.2em}
           <div id="parentBox" hidden>
             <div class="grid2">
               <div class="row">
-                <label class="lb" for="pKyuyo">扶養している親などの給与収入 <span class="sub">負担額の計算に使用</span></label>
+                <label class="lb" for="pKyuyo">扶養している人（親・配偶者など）の給与収入 <span class="sub">負担額の計算に使用</span></label>
                 <input class="yen" type="text" inputmode="numeric" id="pKyuyo">
                 <div class="conv" id="pKyuyo_c"></div>
               </div>
@@ -709,6 +783,34 @@ footer.fine ul{margin:0; padding-left:1.2em}
           <div><button type="button" class="btn" id="resetBtn">入力内容をリセット</button></div>
         </div>
       </section>
+
+      <section class="sect" data-view="diag">
+        <div class="sect-head"><h2>あなたのタイプを判定</h2><span class="hint">3つの質問で、見るべきページを案内します</span></div>
+        <div class="sect-body">
+          <div class="dq"><div class="dq-n">1</div><div class="dq-b">
+            <label class="lb" for="dqAge">その年の12月31日時点の年齢</label>
+            <input type="number" id="dqAge" min="0" max="120" inputmode="numeric" style="max-width:160px">
+          </div></div>
+          <div class="dq"><div class="dq-n">2</div><div class="dq-b">
+            <div class="lb">誰かの扶養に入っていますか？</div>
+            <div class="dq-opts">
+              <label class="dq-opt"><input type="radio" name="dqDep" value="parent"><span><b>親などの扶養に入っている</b><span class="sub">親が扶養控除を受けている。学生やフリーターに多い</span></span></label>
+              <label class="dq-opt"><input type="radio" name="dqDep" value="spouse"><span><b>配偶者の扶養に入っている</b><span class="sub">配偶者が配偶者控除・配偶者特別控除を受けている</span></span></label>
+              <label class="dq-opt"><input type="radio" name="dqDep" value="none"><span><b>どちらにも入っていない</b><span class="sub">自分の所得税・住民税だけを考えればよい</span></span></label>
+            </div>
+          </div></div>
+          <div class="dq"><div class="dq-n">3</div><div class="dq-b">
+            <label class="check"><input type="checkbox" id="dqStudent"> 学生で、アルバイトなど働いて得た所得がある</label>
+            <div class="conv" style="text-align:left">勤労学生控除の判定に使います</div>
+          </div></div>
+          <div><button type="button" class="btn" id="dqRun">判定する</button></div>
+          <div class="dq-res" id="dqRes" hidden></div>
+        </div>
+      </section>
+
+      <section class="sect" data-view="ippan"><div class="sect-body aud" id="aud-ippan"></div></section>
+      <section class="sect" data-view="fuyo"><div class="sect-body aud" id="aud-fuyo"></div></section>
+      <section class="sect" data-view="tokutei"><div class="sect-body aud" id="aud-tokutei"></div></section>
 
       <section class="sect" data-view="detail">
         <div class="sect-head"><h2>税額の明細と試算枠</h2><span class="hint">あと稼いだ場合も試せます</span></div>
@@ -1582,7 +1684,7 @@ function render(){
   $('age_c').textContent = I.age>=65 ? '公的年金等控除は65歳以上の区分' : '';
   $('spAge_c').textContent = I.spouse && I.spouse.age>=70 ? '老人控除対象配偶者' : '';
   $('spBox').hidden = !$('spExists').checked;
-  $('parentBox').hidden = !$('depOfParent').checked;
+  $('parentBox').hidden = !($('depOfParent').checked || $('depOfSpouse').checked);
   deps.forEach(function(d){
     if(!d._el) return;
     const inc = kyuyoIncome(d.rev, year), limit = fuyoLimit(year);
@@ -1666,31 +1768,8 @@ function render(){
   }
 
   /* --- 壁メーター --- */
-  const wallsEl = $('walls'); wallsEl.innerHTML = '';
-  rows.forEach(function(r){
-    const line = r.h.over ? R.revTotal - (r.h.amount||0) : (r.h.amount===null?null:R.revTotal + r.h.amount);
-    const ratio = line && line>0 ? Math.min(1, R.revTotal/line) : (r.h.over?1:0);
-    const state = r.h.over ? 'crit' : (ratio>0.9 ? 'warn' : 'ok');
-    const el = document.createElement('div');
-    el.className = 'wall';
-    el.innerHTML =
-      '<div class="top"><span class="nm">'+r.w.name+'</span>'+
-        '<span class="pill '+state+'">'+(r.h.over?'超過':(state==='warn'?'まもなく':'枠あり'))+'</span>'+
-        '<span class="lim">'+(line!==null?'収入計 '+yen(line):'—')+'</span></div>'+
-      '<div class="track"><div class="fill '+state+'" style="width:calc('+(ratio*100).toFixed(1)+'% - 2px)"></div></div>'+
-      '<div class="amts">'+
-        ['給与',r.k,'業務委託',r.j].reduce(function(acc,_,i,arr){
-          if(i%2) return acc;
-          const nm = arr[i], h = arr[i+1];
-          const txt = h.over
-            ? (h.amount!==null ? yen(h.amount)+' 超過' : '超過')
-            : (h.amount===null ? '上限なし' : 'あと '+yen(h.amount));
-          return acc + '<span'+(h.over?' class="over"':'')+'>'+nm+' <b>'+txt+'</b></span>';
-        },'')+
-      '</div>'+
-      '<div class="bot"><span style="font-family:var(--gothic);color:var(--ink-3);font-size:11px">'+r.w.desc+'</span></div>';
-    wallsEl.appendChild(el);
-  });
+  $('walls').innerHTML = rows.map(function(r){ return wallHTML(r, R); }).join('');
+  renderAudience(I, R, rows);
 
   /* --- 親などの負担と、試算枠 --- */
   renderParent(I, R);
@@ -1770,6 +1849,186 @@ function render(){
   saveState();
 }
 
+/* 壁メーター1件分のHTML（ホームとタイプ別ページで共用） */
+function wallHTML(r, R){
+    const line = r.h.over ? R.revTotal - (r.h.amount||0) : (r.h.amount===null?null:R.revTotal + r.h.amount);
+    const ratio = line && line>0 ? Math.min(1, R.revTotal/line) : (r.h.over?1:0);
+    const state = r.h.over ? 'crit' : (ratio>0.9 ? 'warn' : 'ok');
+    return '<div class="wall">'+
+      '<div class="top"><span class="nm">'+r.w.name+'</span>'+
+        '<span class="pill '+state+'">'+(r.h.over?'超過':(state==='warn'?'まもなく':'枠あり'))+'</span>'+
+        '<span class="lim">'+(line!==null?'収入計 '+yen(line):'—')+'</span></div>'+
+      '<div class="track"><div class="fill '+state+'" style="width:calc('+(ratio*100).toFixed(1)+'% - 2px)"></div></div>'+
+      '<div class="amts">'+
+        ['給与',r.k,'業務委託',r.j].reduce(function(acc,_,i,arr){
+          if(i%2) return acc;
+          const nm = arr[i], h = arr[i+1];
+          const txt = h.over
+            ? (h.amount!==null ? yen(h.amount)+' 超過' : '超過')
+            : (h.amount===null ? '上限なし' : 'あと '+yen(h.amount));
+          return acc + '<span'+(h.over?' class="over"':'')+'>'+nm+' <b>'+txt+'</b></span>';
+        },'')+
+      '</div>'+
+      '<div class="bot"><span style="font-family:var(--gothic);color:var(--ink-3);font-size:11px">'+r.w.desc+'</span></div>'+
+      '</div>';
+}
+function amtOf(h){ return h.amount===null ? '上限なし' : 'あと '+yen(h.amount); }
+
+/* ============================================================
+   5a. タイプ（一般／扶養親族／特定扶養親族）
+   ============================================================ */
+function audienceOf(I){
+  if(I.depOfParent && I.age>=19 && I.age<=22) return 'tokutei';
+  if(I.depOfParent || I.depOfSpouse) return 'fuyo';
+  return 'ippan';
+}
+const kabeNums = function(y){   // 給与だけの単身者の目安
+  return y<=2024 ? {it:'103万円', rt:'100万円'} : y===2025 ? {it:'160万円', rt:'110万円'} : {it:'178万円', rt:'119万円'};
+};
+const manOf = function(v){ return (v/10000).toLocaleString('ja-JP',{maximumFractionDigits:1})+'万円'; };
+const AUD = {
+  ippan: {
+    t:'一般向け', ic:'一', who:'誰の扶養にも入っていない人',
+    walls:['住民税・均等割','住民税・所得割','所得税'],
+    links:['income','deduction','detail'],
+    why:function(I){ return '誰の扶養にも入っていないので、考えるのは自分の所得税・住民税と社会保険だけです。'; },
+    tips:function(I){
+      const k = kabeNums(I.year);
+      return [
+        '給与だけの単身者なら、所得税がかかり始めるのは年収 <b>'+k.it+'</b>、住民税は <b>'+k.rt+'</b> が目安です（令和'+(I.year-2018)+'年分）。上のメーターはあなたの入力に合わせた正確な位置です。',
+        '社会保険は別の壁です。勤務先で加入する <b>106万円</b>（週20時間以上などの条件つき）と、家族の健康保険にとどまれる <b>130万円</b>（60歳以上・障害者は180万円）があります。',
+        '業務委託の収入は、必要経費と青色申告特別控除（最大65万円）を差し引いた残りが所得になります。同じ額を稼ぐなら、給与所得控除のない業務委託のほうが所得が大きくなりやすいので、上の「業務委託で稼ぐなら」を確認してください。',
+        '収入を月ごとに入れると、いまのペースで何月ごろ壁に届くかを試算します。'
+      ];
+    }
+  },
+  fuyo: {
+    t:'扶養親族向け', ic:'扶', who:'親や配偶者の扶養に入っている人（19〜22歳を除く）',
+    walls:['親などの扶養控除','配偶者控除','配偶者特別控除（満額）','配偶者特別控除（上限）','住民税・均等割','住民税・所得割','所得税'],
+    links:['you','income','detail'],
+    why:function(I){
+      return (I.depOfSpouse ? '配偶者' : '親など')+'の扶養に入っているので、あなた自身の税金より先に「扶養から外れる線」と、外れたときに'
+           + (I.depOfSpouse ? '配偶者' : '親')+'の税金がいくら増えるかを見ておく必要があります。';
+    },
+    tips:function(I){
+      const y = I.year, lim = fuyoLimit(y);
+      const t = ['扶養に入っていられるのは、あなたの合計所得が <b>'+manOf(lim)+'</b> まで（給与だけなら年収 <b>'+manOf(revForIncome(lim,y))+'</b>）。'];
+      if(I.depOfSpouse){
+        t.push('配偶者の扶養なら、この線を超えても<b>配偶者特別控除</b>に切り替わり、合計所得 <b>'+manOf(950000)+'</b>（給与 '+manOf(revForIncome(950000,y))+'）までは控除額が満額のままです。そこから段階的に減り、'+manOf(y<=2019?1230000:1330000)+'で0になります。');
+      }else{
+        t.push('この線を1円でも超えると、親などが受けている扶養控除（一般38万円・住民税33万円）が<b>丸ごと</b>なくなります。増える税額は上のカードで確認できます。');
+      }
+      t.push('あなた自身にも住民税・所得税の壁があります（給与だけなら住民税 '+kabeNums(y).rt+'、所得税 '+kabeNums(y).it+' が目安）。扶養の線とは別に効きます。');
+      t.push('家族の健康保険にとどまるには年収 <b>130万円</b> 未満（見込み）が目安です。こちらは扶養控除とは別の判定です。');
+      return t;
+    }
+  },
+  tokutei: {
+    t:'特定扶養親族向け', ic:'特', who:'19〜22歳で親の扶養に入っている人',
+    walls:['特定親族特別控除（満額）','特定親族特別控除（上限）','親などの扶養控除','勤労学生控除','住民税・均等割','住民税・所得割','所得税'],
+    links:['you','income','detail'],
+    why:function(I){ return I.age+'歳で親の扶養に入っているので特定扶養親族です。親が受ける控除が大きい（63万円）分、外れたときの影響も大きくなります。'; },
+    tips:function(I){
+      const y = I.year, lim = fuyoLimit(y), t = [];
+      if(y>=2025){
+        t.push('令和7年分からは<b>特定親族特別控除</b>があり、扶養の線（合計所得 '+manOf(lim)+'）を超えても、合計所得 <b>85万円</b>（給与 '+manOf(revForIncome(850000,y))+'）までは親の控除63万円が満額のまま続きます。');
+        t.push('そこから段階的に減り、合計所得 <b>123万円</b>（給与 '+manOf(revForIncome(1230000,y))+'）を超えると0になります。減り方は「税額の明細」の親の負担で確認できます。');
+      }else{
+        t.push('令和6年分以前には段階がありません。合計所得 <b>'+manOf(lim)+'</b>（給与 '+manOf(revForIncome(lim,y))+'）を1円でも超えると、親の特定扶養控除<b>63万円</b>（住民税45万円）が丸ごと消えます。');
+      }
+      const sl = studentLimit(y);
+      t.push((I.student?'あなたは学生なので、':'学生なら、')+'合計所得 <b>'+manOf(sl)+'</b>（給与 '+manOf(revForIncome(sl,y))+'）までは<b>勤労学生控除</b>（27万円）で自分の所得税が軽くなります。'+(I.student?'':'「あなたの状況」で学生にチェックを入れてください。'));
+      t.push('家族の健康保険にとどまるには年収 <b>130万円</b> 未満が目安です。学生は勤務先の社会保険（106万円）の対象外です。');
+      return t;
+    }
+  }
+};
+
+function renderAudience(I, R, rows){
+  const cur = audienceOf(I);
+  Object.keys(AUD).forEach(function(a){
+    const A = AUD[a];
+    let h = '<div class="aud-head"><span class="ic">'+A.ic+'</span><div><div class="aud-t">'+A.t+'</div><div class="aud-who">'+A.who+'</div></div></div>';
+    if(cur!==a){
+      const st = I.age+'歳・'+(I.depOfParent?'親の扶養':I.depOfSpouse?'配偶者の扶養':'扶養に入っていない');
+      h += '<div class="aud-note">いまの入力（'+st+'）では<b>「'+AUD[cur].t+'」</b>に該当します。'
+         + '<button type="button" class="lnk" data-go="'+cur+'">そのページを開く</button>　'
+         + '<button type="button" class="lnk" data-go="diag">判定をやり直す</button></div>';
+    }
+    const sel = [];
+    A.walls.forEach(function(name){
+      const r = rows.filter(function(x){ return x.w.name===name; })[0];
+      if(r) sel.push(r);
+    });
+    const pend = sel.filter(function(r){ return !r.h.over && r.h.amount!==null; })
+                    .sort(function(x,y){ return x.h.amount-y.h.amount; });
+    if(pend.length){
+      const p = pend[0];
+      h += '<div class="aud-hero"><div class="lb2">いちばん近い線「'+p.w.name+'」まで</div><div class="figs">'
+         + '<div class="fig"><span class="lb2">給与で稼ぐなら</span><b class="big ok">'+amtOf(p.k)+'</b></div>'
+         + '<div class="fig"><span class="lb2">業務委託で稼ぐなら</span><b class="big ok">'+amtOf(p.j)+'</b></div></div></div>';
+    }else if(sel.length){
+      h += '<div class="aud-hero"><div class="lb2">このタイプの線はすべて超えています</div><div class="figs">'
+         + '<div class="fig"><span class="lb2">年間の税額</span><b class="big crit">'+yen(R.taxAll)+'</b></div></div></div>';
+    }
+    if(sel.length) h += '<div class="walls">'+sel.map(function(r){ return wallHTML(r, R); }).join('')+'</div>';
+    if(a!=='ippan'){
+      const pb = parentBurden(I, R.total);
+      if(pb && pb.full.ded>0){
+        h += '<div class="aud-burden">'+(pb.diff>0
+          ? '扶養している人の税額が <b class="bad">'+yen(pb.diff)+'</b> 増えています（控除 '+yen(pb.full.ded)+' → '+yen(pb.now.ded)+'）。'
+          : '扶養している人の控除は満額 <b>'+yen(pb.full.ded)+'</b> のままです。追加の負担はありません。')
+          + ' <button type="button" class="lnk" data-go="detail">詳しく見る</button></div>';
+      }else if(!pb){
+        h += '<div class="aud-burden">「あなたの状況」で扶養に入っていることを選ぶと、扶養している人の負担も計算します。 '
+           + '<button type="button" class="lnk" data-go="you">設定する</button></div>';
+      }
+    }
+    h += '<h3 class="aud-h3">知っておきたいこと</h3><ul class="aud-tips">'
+       + A.tips(I).map(function(x){ return '<li>'+x+'</li>'; }).join('')+'</ul>';
+    h += '<div class="aud-links">'
+       + A.links.map(function(v){ return '<button type="button" class="btn" data-go="'+v+'">'+VIEWS[v].t+'</button>'; }).join('')
+       + '<button type="button" class="btn" data-go="home">すべてのメニュー</button></div>';
+    $('aud-'+a).innerHTML = h;
+  });
+  const A = AUD[cur];
+  $('audCard').innerHTML =
+    '<div class="ac-row"><span class="ic">'+A.ic+'</span><div class="ac-tx"><div class="ac-l">あなたのタイプ</div>'
+    + '<div class="ac-t">'+A.t+'</div><div class="ac-who">'+A.who+'</div></div>'
+    + '<button type="button" class="btn" data-go="'+cur+'">専用ページを開く</button></div>'
+    + '<div class="ac-chips">'
+    + Object.keys(AUD).map(function(k){ return '<button type="button" class="chip'+(k===cur?' on':'')+'" data-go="'+k+'">'+AUD[k].t+'</button>'; }).join('')
+    + '<button type="button" class="chip" data-go="diag">タイプを判定する</button></div>';
+}
+
+/* 判定ページ */
+const DIAG_KEY = 'shotoku-simulator.diag';
+function fillDiag(){
+  $('dqAge').value = $('age').value;
+  const v = $('depOfParent').checked ? 'parent' : $('depOfSpouse').checked ? 'spouse' : '';
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=dqDep]'), function(r){ r.checked = (r.value===v); });
+  $('dqStudent').checked = $('student').checked;
+  $('dqRes').hidden = true;
+}
+function runDiag(){
+  const dep = (document.querySelector('input[name=dqDep]:checked')||{}).value;
+  const res = $('dqRes');
+  res.hidden = false;
+  if(!dep){ res.innerHTML = '<p class="wi-msg"><span class="bad">質問2に答えてください。</span></p>'; return; }
+  $('age').value = parseInt($('dqAge').value||'0',10)||0;
+  $('depOfParent').checked = (dep==='parent');
+  $('depOfSpouse').checked = (dep==='spouse');
+  $('student').checked = $('dqStudent').checked;
+  render();
+  const I = collect(), a = audienceOf(I), A = AUD[a];
+  try{ localStorage.setItem(DIAG_KEY, '1'); }catch(e){}
+  res.innerHTML =
+    '<div class="dq-type"><span class="ic">'+A.ic+'</span><div><div class="nm">'+A.t+'</div><div class="sm">'+A.who+'</div></div></div>'
+    + '<p class="wi-msg">'+A.why(I)+'</p>'
+    + '<div class="wi-acts"><button type="button" class="btn" data-go="'+a+'">このタイプのページを開く</button>'
+    + '<button type="button" class="btn" data-go="home">ホームへ</button></div>';
+}
+
 /* 試算枠：あと◯◯円稼いだ場合をその場で比べる */
 const tryNumOf = function(id){ const v=($(id).value||'').replace(/[^0-9]/g,''); return v?parseInt(v,10):0; };
 const tedori = function(I,R){ return Math.max(0, R.revTotal - I.keihi - R.taxAll - I.shakai - I.ideco); };
@@ -1780,21 +2039,24 @@ const withTry = function(I, addK, addJ){
 /* 扶養している親などの側で申告した場合の税額を、同じ計算で求める。
    あなたの合計所得が要件を超えると、その人の扶養控除が減って税額が増える。 */
 function parentTax(I, myTotal){
+  // 親の扶養なら「扶養親族」として、配偶者の扶養なら「配偶者」として、その人の側で申告した場合を計算する
+  const asSpouse = !I.depOfParent && I.depOfSpouse;
   const base = {
     year:I.year, kyuyoRev:I.pKyuyo, jigyoRev:0, keihi:0, aoiroMax:0, kubun:'zatsu',
     nenkinRev:0, otherInc:0, age:50, disab:'none', widow:'none', student:false,
-    depOfParent:false, depOfSpouse:false, spouse:null,
-    deps:[{age:I.age, income:myTotal, rev:0, disab:'none', rokushin:false}],
+    depOfParent:false, depOfSpouse:false,
+    spouse: asSpouse ? {income:myTotal, kyuyoRev:0, otherInc:0, age:I.age, disab:'none'} : null,
+    deps: asSpouse ? [] : [{age:I.age, income:myTotal, rev:0, disab:'none', rokushin:false}],
     shakai:I.pShakai, ideco:0, hoken:0, other:0,
     kyuchi:I.kyuchi, kintou:I.kintou, channel:'kyuyo'
   };
-  const R = calc(base);
+  const R = calc(base), key = asSpouse ? 'spouse' : 'dep0';
   let ded = 0;
-  R.deductions.forEach(function(e){ if(e.key==='dep0') ded += e.it; });
+  R.deductions.forEach(function(e){ if(e.key===key) ded += e.it; });
   return {tax:R.taxAll, taxIt:R.taxIt, taxRt:R.taxRt, ded:ded};
 }
 function parentBurden(I, myTotal){
-  if(!I.depOfParent) return null;
+  if(!I.depOfParent && !I.depOfSpouse) return null;
   const full = parentTax(I, 0);            // あなたの所得が要件内におさまる場合
   const now  = parentTax(I, myTotal);
   return {full:full, now:now, diff:now.tax-full.tax,
@@ -1807,18 +2069,21 @@ function renderParent(I, R){
   card.hidden = !pb;
   if(!pb) return;
   const lost = pb.full.ded - pb.now.ded;
-  let h = '<div class="pc-ttl">扶養している親などの負担</div>';
+  const who = I.depOfParent ? '親など' : '配偶者';
+  let h = '<div class="pc-ttl">扶養している'+who+'の負担</div>';
   if(pb.full.ded===0){
-    h += '<p class="pc-msg">'+I.age+'歳のあなたは扶養控除の対象年齢ではないため、'
-       + 'あなたの収入によって親などの税額が変わることはありません。</p>';
+    h += '<p class="pc-msg">'+(I.depOfParent
+        ? I.age+'歳のあなたは扶養控除の対象年齢ではないため、'
+        : '扶養している人の所得が要件を超えているため、')
+       + 'あなたの収入によって'+who+'の税額が変わることはありません。</p>';
   }else if(lost<=0){
     h += '<div class="pc-big zero">'+yen(0)+'</div>'
        + '<p class="pc-msg">いまのあなたの合計所得 <b>'+yen(R.total)+'</b> なら、'
-       + '親などは <b>'+yen(pb.full.ded)+'</b> の控除を満額で受けられます。追加の負担はありません。</p>';
+       + who+'は <b>'+yen(pb.full.ded)+'</b> の控除を満額で受けられます。追加の負担はありません。</p>';
   }else{
     h += '<div class="pc-big">'+yen(pb.diff)+'</div>'
        + '<p class="pc-msg">あなたの合計所得が <b>'+yen(R.total)+'</b> になったことで、'
-       + '親などの控除が '+yen(pb.full.ded)+' から <b>'+yen(pb.now.ded)+'</b> に'+yen(lost)+'減り、'
+       + who+'の控除が '+yen(pb.full.ded)+' から <b>'+yen(pb.now.ded)+'</b> に'+yen(lost)+'減り、'
        + 'その人の年間の税額が <b>'+yen(pb.diff)+'</b> 増えます'
        + '（所得税等 '+yen(pb.diffIt)+' ＋ 住民税 '+yen(pb.diffRt)+'）。</p>';
   }
@@ -2012,7 +2277,8 @@ function restoreState(){
    5c. トップページと画面の切り替え
    ============================================================ */
 const VIEWS = {
-  home:{t:'ホーム'}, income:{t:'収入'}, you:{t:'あなたの状況'}, spouse:{t:'配偶者'},
+  home:{t:'ホーム'}, diag:{t:'あなたのタイプを判定'},
+  ippan:{t:'一般向け'}, fuyo:{t:'扶養親族向け'}, tokutei:{t:'特定扶養親族向け'}, income:{t:'収入'}, you:{t:'あなたの状況'}, spouse:{t:'配偶者'},
   deps:{t:'扶養親族'}, deduction:{t:'所得控除'}, settings:{t:'試算の設定'},
   detail:{t:'税額の明細と試算枠'}, family:{t:'扶養している人と手取り'}
 };
@@ -2078,7 +2344,9 @@ function setView(v){
     el.hidden = (el.dataset.view !== v);
   });
   $('menu').hidden = (v !== 'home');
+  $('audCard').hidden = (v !== 'home');
   $('viewbar').hidden = (v === 'home');
+  if(v === 'diag') fillDiag();
   $('viewTitle').textContent = VIEWS[v].t;
   document.querySelector('.cols').hidden = (v === 'family');
   window.scrollTo(0, 0);
@@ -2092,10 +2360,11 @@ function goto(v){
 window.addEventListener('hashchange', function(){
   setView((location.hash || '#home').slice(1));
 });
-$('menu').addEventListener('click', function(e){
+document.addEventListener('click', function(e){
   const b = e.target.closest('[data-go]');
   if(b) goto(b.dataset.go);
 });
+$('dqRun').addEventListener('click', runDiag);
 $('backBtn').addEventListener('click', function(){ goto('home'); });
 
 /* ============================================================
@@ -2184,7 +2453,11 @@ window.addEventListener('resize', function(){
 if(!restoreState()) syncYear();   // 前回の入力があれば復元する
 drawDeps();
 render();
-setView((location.hash || '#home').slice(1));
+let firstView = (location.hash || '#home').slice(1);
+if(firstView === 'home'){
+  try{ if(!localStorage.getItem(DIAG_KEY)) firstView = 'diag'; }catch(e){}   // 初回だけ判定ページから
+}
+setView(firstView);
 </script>
 
 <script>
