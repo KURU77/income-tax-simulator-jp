@@ -2429,8 +2429,11 @@ Array.prototype.forEach.call(document.querySelectorAll('.wi-acts .btn[data-fill]
 });
 
 /* 入力中は固定バーを隠し、結果が画面に入ったら不要なので隠す */
+/* 画面下の固定バー（いちばん近い線まであといくら）。
+   いまは表示しない。復活させるときは MBAR_ENABLED を true にする。 */
+const MBAR_ENABLED = false;
 let barFocus = false, heroOn = false;
-const updBar = function(){ $('mbar').hidden = barFocus || heroOn; };
+const updBar = function(){ $('mbar').hidden = !MBAR_ENABLED || barFocus || heroOn; };
 document.addEventListener('focusin', function(e){
   if(e.target.closest('input,select,textarea')){ barFocus = true; updBar(); }
 });
