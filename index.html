@@ -702,6 +702,16 @@ footer.fine ul{margin:0; padding-left:1.2em}
               <div class="conv"></div>
             </div>
             <div class="row">
+              <label class="lb" for="pref">都道府県 <span class="sub">住民税の均等割・所得割に反映</span></label>
+              <select id="pref"></select>
+              <div class="conv" id="pref_c"></div>
+            </div>
+            <div class="row">
+              <label class="lb" for="city">市区町村</label>
+              <select id="city"></select>
+              <div class="conv" id="city_c"></div>
+            </div>
+            <div class="row">
               <label class="lb" for="kyuchi">お住まいの級地 <span class="sub">住民税の非課税限度額</span></label>
               <select id="kyuchi">
                 <option value="1">1級地（多くの市部）</option>
@@ -815,11 +825,13 @@ footer.fine ul{margin:0; padding-left:1.2em}
               <div class="conv"></div>
             </div>
             <div class="row">
-              <label class="lb" for="kintou">住民税の均等割額 <span class="sub">自治体で異なる</span></label>
+              <label class="lb" for="kintou">住民税の均等割額 <span class="sub">住所から自動。直したいときだけ変更</span></label>
               <input class="yen" type="text" inputmode="numeric" id="kintou">
               <div class="conv" id="kintou_c"></div>
             </div>
           </div>
+          <label class="check"><input type="checkbox" id="kintouAuto" checked> 均等割額を住所から自動で決める</label>
+          <p class="saveinfo" id="juminInfo"></p>
           <p class="saveinfo">入力した内容はこの端末のブラウザに自動保存され、次に開いたときそのまま続けられます。外部には送信されません。</p>
           <div><button type="button" class="btn" id="resetBtn">入力内容をリセット</button></div>
         </div>
@@ -1086,6 +1098,79 @@ const TOKUTEI_SHINZOKU = [
   [1150000,110000,110000],[1200000, 60000, 60000],[1230000, 30000, 30000]
 ];
 
+/* ------------------------------------------------------------
+   住民税の地域差
+   都道府県：[名前, 県民税均等割の上乗せ額, 県民税所得割の上乗せ率(%), 超過課税の名称]
+   上乗せは標準（均等割1,000円・所得割4%）に足す分。出典は各都道府県の公表資料。
+   市区町村：標準は均等割3,000円・所得割6%（政令市は市8%・県2%で合計は同じ）。
+   合計が標準と変わるのは、いまのところ横浜市と名古屋市だけ。
+   ------------------------------------------------------------ */
+const PREFS = [
+  ['北海道',0,0,''],['青森県',0,0,''],
+  ['岩手県',1000,0,'いわての森林づくり県民税'],['宮城県',1200,0,'みやぎ環境税'],
+  ['秋田県',800,0,'秋田県水と緑の森づくり税'],['山形県',1000,0,'やまがた緑環境税'],
+  ['福島県',1000,0,'森林環境税'],['茨城県',1000,0,'森林湖沼環境税'],
+  ['栃木県',700,0,'とちぎの元気な森づくり県民税'],['群馬県',700,0,'ぐんま緑の県民税'],
+  ['埼玉県',0,0,''],['千葉県',0,0,''],['東京都',0,0,''],
+  ['神奈川県',300,0.025,'水源環境保全税'],
+  ['新潟県',0,0,''],['富山県',500,0,'水と緑の森づくり税'],
+  ['石川県',500,0,'いしかわ森林環境税'],['福井県',0,0,''],
+  ['山梨県',500,0,'森林環境税'],['長野県',500,0,'長野県森林づくり県民税'],
+  ['岐阜県',1000,0,'清流の国ぎふ森林・環境税'],['静岡県',400,0,'森林づくり県民税'],
+  ['愛知県',500,0,'あいち森と緑づくり税'],['三重県',1000,0,'みえ森と緑の県民税'],
+  ['滋賀県',800,0,'琵琶湖森林づくり県民税'],['京都府',600,0,'豊かな森を育てる府民税'],
+  ['大阪府',300,0,'森林環境税'],['兵庫県',800,0,'県民緑税'],
+  ['奈良県',500,0,'森林環境税'],['和歌山県',500,0,'紀の国森づくり税'],
+  ['鳥取県',500,0,'豊かな森づくり協働税'],['島根県',500,0,'水と緑の森づくり税'],
+  ['岡山県',500,0,'おかやま森づくり県民税'],['広島県',500,0,'ひろしまの森づくり県民税'],
+  ['山口県',500,0,'やまぐち森林づくり県民税'],['徳島県',0,0,''],['香川県',0,0,''],
+  ['愛媛県',700,0,'森林環境税'],['高知県',500,0,'森林環境税'],
+  ['福岡県',500,0,'森林環境税'],['佐賀県',500,0,'森林環境税'],
+  ['長崎県',500,0,'ながさき森林環境税'],['熊本県',500,0,'水とみどりの森づくり税'],
+  ['大分県',500,0,'森林環境税'],['宮崎県',500,0,'森林環境税'],
+  ['鹿児島県',500,0,'みんなの森づくり県民税'],['沖縄県',0,0,'']
+];
+const PREFMAP = {}; PREFS.forEach(function(p){ PREFMAP[p[0]] = p; });
+
+/* 合計税額が標準と変わる市区町村だけを持つ。それ以外は「その他」で標準。 */
+const CITIES = {
+  '神奈川県':[['横浜市',{kintouAdd:900, note:'横浜みどり税 900円'}]],
+  '愛知県'  :[['名古屋市',{kintouCity:2800, rateCity:7.7, note:'市民税の5%減税（所得割7.7%・均等割2,800円）'}]]
+};
+
+/* その年分の所得に対する住民税の「年度」。前年の所得に課されるので1つ後。 */
+function juminYear(y){ return y + 1; }
+
+/* 住民税の均等割額と所得割の税率を、住所から決める */
+function juminRates(I){
+  const y = I.year, fy = juminYear(y);
+  const pref = PREFMAP[I.pref] || ['', 0, 0, ''];
+  const city = ((CITIES[I.pref] || []).filter(function(c){ return c[0] === I.city; })[0] || [null, {}])[1];
+
+  // 均等割：標準は市3,000円＋県1,000円＋森林環境税1,000円（令和6年度から）。
+  // 令和5年度までは市3,500円＋県1,500円（復興特別分を含む）で、森林環境税はない。
+  const newEra = fy >= 2024;
+  const baseCity = newEra ? 3000 : 3500;
+  const basePref = newEra ? 1000 : 1500;
+  const forest = newEra ? 1000 : 0;
+  const cityKintou = (city.kintouCity !== undefined ? city.kintouCity : baseCity) + (city.kintouAdd || 0);
+  const prefKintou = basePref + (pref[1] || 0);
+
+  // 所得割：標準は市6%＋県4%。神奈川県の上乗せは令和9年度から0.018%に下がる。
+  let prefAdd = pref[2] || 0;
+  if(I.pref === '神奈川県' && fy >= 2027) prefAdd = 0.018;
+  const rateCity = (city.rateCity !== undefined ? city.rateCity : 6);
+  const ratePref = (city.rateCity !== undefined ? 2 : 4) + prefAdd;   // 政令市の税率差は合計に影響しない
+
+  return {
+    kintou: cityKintou + prefKintou + forest,
+    rate: (rateCity + ratePref) / 100,
+    cityKintou: cityKintou, prefKintou: prefKintou, forest: forest,
+    prefName: pref[3] || '', cityNote: city.note || '',
+    prefAdd: prefAdd, std: (rateCity + ratePref) === 10 && (cityKintou + prefKintou + forest) === 5000
+  };
+}
+
 /* 所得税の速算表 */
 function incomeTaxOf(taxable){
   const t = Math.floor(Math.max(0,taxable)/1000)*1000;
@@ -1234,6 +1319,7 @@ function calc(I){
   const kintouFree = specialFree || total<=kintouLimit;
   const shotokuFree = specialFree || total<=shotokuLimit;
 
+  const jr = I.jumin || {kintou:I.kintou, rate:0.10};
   const taxableRt = Math.floor(Math.max(0, total - dedRt)/1000)*1000;
   let chosei = 0;
   if(y<=2019 || total<=25000000){
@@ -1242,7 +1328,7 @@ function calc(I){
       : Math.max(2500, Math.floor(Math.max(0, jintekiSum-(taxableRt-2000000))*0.05));
     if(taxableRt<=0) chosei = 0;
   }
-  let shotokuwari = shotokuFree ? 0 : Math.max(0, Math.floor(taxableRt*0.10) - chosei);
+  let shotokuwari = shotokuFree ? 0 : Math.max(0, Math.floor(taxableRt*jr.rate) - chosei);
   const shotokuwariRaw = shotokuwari;   // 定額減税を引く前（壁の判定に使う）
   let teigakuRt = 0;
   if(y===2024 && total<=18050000 && shotokuwari>0){
@@ -1250,7 +1336,7 @@ function calc(I){
     shotokuwari -= teigakuRt;
   }
   shotokuwari = Math.floor(shotokuwari/100)*100;
-  const kintou = kintouFree ? 0 : I.kintou;
+  const kintou = kintouFree ? 0 : jr.kintou;
   const taxRt = shotokuwari + kintou;
 
   return {
@@ -1494,6 +1580,19 @@ const yen = function(n){
 const man = function(n){ if(!n) return ''; return '= ' + (n/10000).toLocaleString('ja-JP',{maximumFractionDigits:1}) + '万円'; };
 const num = function(id){ const v = ($(id).value||'').replace(/[^0-9]/g,''); return v?parseInt(v,10):0; };
 
+/* 都道府県の選択肢 */
+(function(){
+  const sel = $('pref');
+  const o0 = document.createElement('option'); o0.value=''; o0.textContent='選択してください';
+  sel.appendChild(o0);
+  PREFS.forEach(function(p){
+    const o=document.createElement('option'); o.value=p[0]; o.textContent=p[0]; sel.appendChild(o);
+  });
+  sel.addEventListener('change', function(){ syncCity(); render(); });
+  $('city').addEventListener('change', render);
+  $('kintouAuto').addEventListener('change', render);
+})();
+
 /* 年分のタブ */
 YEARS.forEach(function(o){
   const b = document.createElement('button');
@@ -1696,7 +1795,7 @@ function collect(){
     age: parseInt($('spAge').value||'0',10)||0,
     disab: $('spDisab').value
   } : null;
-  return {
+  const I = {
     year:year,
     kyuyoRev:num('kyuyoRev'), jigyoRev:num('jigyoRev'), keihi:num('keihi'),
     aoiroMax: opt?opt[2]:0, kubun:kubun,
@@ -1708,8 +1807,24 @@ function collect(){
     deps: deps.map(function(d){ return {age:d.age, income:kyuyoIncome(d.rev,year), rev:d.rev, disab:d.disab, rokushin:d.rokushin}; }),
     shakai:num('shakai'), ideco:num('ideco'), hoken:num('hoken'), other:num('other'),
     pKyuyo:num('pKyuyo'), pShakai:num('pShakai'),
-    kyuchi:$('kyuchi').value, kintou:num('kintou'), channel:$('channel').value
+    kyuchi:$('kyuchi').value, kintou:num('kintou'), channel:$('channel').value,
+    pref:$('pref').value, city:$('city').value
   };
+  I.jumin = juminRates(I);
+  if(!$('kintouAuto').checked) I.jumin = Object.assign({}, I.jumin, {kintou:num('kintou')});
+  return I;
+}
+
+/* 都道府県に合わせて市区町村の選択肢を作り直す */
+function syncCity(){
+  const sel = $('city'), keep = sel.value, list = CITIES[$('pref').value] || [];
+  sel.innerHTML = '';
+  list.forEach(function(c){
+    const o = document.createElement('option'); o.value = c[0]; o.textContent = c[0]; sel.appendChild(o);
+  });
+  const o = document.createElement('option'); o.value = ''; o.textContent = 'その他の市区町村';
+  sel.appendChild(o);
+  sel.value = list.some(function(c){ return c[0] === keep; }) ? keep : '';
 }
 
 /* ============================================================
@@ -1726,6 +1841,18 @@ function render(){
   $('spAge_c').textContent = I.spouse && I.spouse.age>=70 ? '老人控除対象配偶者' : '';
   $('spBox').hidden = !$('spExists').checked;
   $('parentBox').hidden = !($('depOfParent').checked || $('depOfSpouse').checked);
+  // 住所から決まった住民税の内訳を知らせる
+  const jr = I.jumin;
+  $('kintou').readOnly = $('kintouAuto').checked;
+  if($('kintouAuto').checked && num('kintou') !== jr.kintou) $('kintou').value = jr.kintou.toLocaleString('ja-JP');
+  $('juminInfo').innerHTML = I.pref
+    ? '令和'+(juminYear(I.year)-2018)+'年度の'+esc(I.pref)+(I.city?esc(I.city):'')+'：均等割 <b>'+yen(jr.kintou)+'</b>'
+      + '（市区町村 '+yen(jr.cityKintou)+' ＋ 都道府県 '+yen(jr.prefKintou)+(jr.forest?' ＋ 森林環境税 '+yen(jr.forest):'')+'）、'
+      + '所得割 <b>'+(jr.rate*100).toFixed(3).replace(/\.?0+$/,'')+'%</b>。'
+      + (jr.prefName ? jr.prefName+'による上乗せを含みます。' : '')
+      + (jr.cityNote ? jr.cityNote+'。' : '')
+      + (jr.std ? '標準どおりです。' : '')
+    : '都道府県を選ぶと、その地域の均等割と所得割で計算します。';
   deps.forEach(function(d){
     if(!d._el) return;
     const inc = kyuyoIncome(d.rev, year), limit = fuyoLimit(year);
@@ -2463,6 +2590,8 @@ function applyState(s){
     $('tryKyuyo').value = (Number(s.t.k)||0).toLocaleString('ja-JP');
     $('tryJigyo').value = (Number(s.t.j)||0).toLocaleString('ja-JP');
   }
+  syncCity();
+  if(s.f && s.f.city !== undefined) $('city').value = s.f.city;   // 選択肢を作り直したあとに戻す
   YEN_IDS.forEach(function(id){ $(id).value = num(id).toLocaleString('ja-JP'); });
   deps = (s.d||[]).map(function(d){
     return {id:++depSeq, age:Number(d.age)||0, rev:Number(d.rev)||0,
@@ -2600,6 +2729,7 @@ function applyDefaults(){
   ['disab','widow','kyuchi','channel','kubun'].forEach(function(id){ const e=$(id); if(e) e.selectedIndex = 0; });
   ['student','depOfParent','depOfSpouse','spExists'].forEach(function(id){ $(id).checked = false; });
   $('tryKyuyo').value = '0'; $('tryJigyo').value = '0';
+  $('pref').value = ''; $('kintouAuto').checked = true; syncCity();
   deps = [];
   MFIELDS.forEach(function(f){
     monthly[f.id] = {on:false, v:new Array(12).fill(0)};
@@ -2674,6 +2804,7 @@ window.addEventListener('resize', function(){
   rzTimer = setTimeout(function(){ if(!$('fvPanel').hidden) renderFuyo(collect()); }, 150);
 });
 
+syncCity();
 if(!restoreState()) syncYear();   // 前回の入力があれば復元する
 drawDeps();
 render();
@@ -2710,14 +2841,34 @@ setView(firstView);
   paintNet();
 
   if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () {});
+    // 新しい版があるかどうかは Service Worker の状態で判断する。
+    // 新しい sw.js は「待機中（waiting）」になるので、そのときだけ知らせる。
+    // 同じ版を開き直しただけで通知が出ることはない。
+    var reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (reloading) return;          // 差し替わったら一度だけ読み直す
+      reloading = true;
+      location.reload();
     });
-    navigator.serviceWorker.addEventListener('message', function (ev) {
-      if (!ev.data || ev.data.type !== 'update-ready') return;
-      notice('<span>新しい版があります。</span><button type="button">再読み込み</button>',
-             function () { location.reload(); });
-      box.dataset.kind = 'update';
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        function offer() {
+          notice('<span>新しい版があります。</span><button type="button">更新する</button>', function () {
+            if (reg.waiting) reg.waiting.postMessage({ type: 'skip-waiting' });
+            else location.reload();
+          });
+          box.dataset.kind = 'update';
+        }
+        // controller がある＝前から使っている。初回の導入では知らせない
+        if (reg.waiting && navigator.serviceWorker.controller) offer();
+        reg.addEventListener('updatefound', function () {
+          var sw = reg.installing;
+          if (!sw) return;
+          sw.addEventListener('statechange', function () {
+            if (sw.state === 'installed' && navigator.serviceWorker.controller) offer();
+          });
+        });
+      }).catch(function () {});
     });
   }
 })();

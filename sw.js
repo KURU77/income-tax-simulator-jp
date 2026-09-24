@@ -1,10 +1,13 @@
 /* オフラインでも開けるようにするための Service Worker。
-   本体を更新したら CACHE の版数を上げること。
+   本体を更新したら CACHE の版数を上げること。それが更新の合図になる。
 
-   画面はキャッシュを先に返し、裏でサーバーに確認する（stale-while-revalidate）。
-   こうすると圏外でも、電波が弱くて応答が返らない場所でも、待たされずに開ける。
-   新しい版が見つかったときはページへ知らせ、利用者が再読み込みできるようにする。 */
-const CACHE = 'shotoku-sim-v18';
+   画面はキャッシュから返す（オフラインでも、電波が弱い場所でも待たされない）。
+   新しい版の配信に気づく役目は Service Worker の仕組みそのものに任せる。
+   新しい sw.js を見つけたブラウザはそれを「待機中」にするので、
+   ページ側はその状態を見て更新を知らせ、利用者が押したら差し替える。
+   （以前はキャッシュとネットワークの ETag を比べていたが、
+     同じ版でも通知が出ることがあり、押しても差し替わらなかった） */
+const CACHE = 'shotoku-sim-v19';
 const INDEX = './index.html';
 const ASSETS = [
   './',
@@ -19,6 +22,7 @@ const ASSETS = [
 self.addEventListener('install', function (e) {
   // ブラウザのHTTPキャッシュを経由せず、必ず配信元から取り直して保存する。
   // 1つ取得できなくても導入は続ける（全部失敗扱いにするとオフライン対応が丸ごと効かなくなる）。
+  // ここで skipWaiting はしない。待機させることが「新しい版がある」という合図になる。
   e.waitUntil(
     caches.open(CACHE).then(function (c) {
       return Promise.all(ASSETS.map(function (u) {
@@ -26,8 +30,13 @@ self.addEventListener('install', function (e) {
           .then(function (r) { if (r && r.ok) return c.put(u, r); })
           .catch(function () {});
       }));
-    }).then(function () { return self.skipWaiting(); })
+    })
   );
+});
+
+// ページで「更新する」が押されたら、待機をやめて自分が引き継ぐ
+self.addEventListener('message', function (e) {
+  if (e.data && e.data.type === 'skip-waiting') self.skipWaiting();
 });
 
 self.addEventListener('activate', function (e) {
@@ -37,17 +46,6 @@ self.addEventListener('activate', function (e) {
     }).then(function () { return self.clients.claim(); })
   );
 });
-
-/** 取り直した本体が、いま表示しているものと違うならページへ知らせる */
-function notifyIfNew(fresh, cached) {
-  if (!fresh || !fresh.ok || !cached) return;
-  const a = fresh.headers.get('etag') || fresh.headers.get('last-modified');
-  const b = cached.headers.get('etag') || cached.headers.get('last-modified');
-  if (!a || !b || a === b) return;
-  return self.clients.matchAll({ type: 'window' }).then(function (list) {
-    list.forEach(function (client) { client.postMessage({ type: 'update-ready' }); });
-  });
-}
 
 self.addEventListener('fetch', function (e) {
   const req = e.request;
@@ -60,39 +58,19 @@ self.addEventListener('fetch', function (e) {
     const key = new URL(req.url);
     key.search = '';
     key.hash = '';
-    const keyHref = key.href;
 
-    const cachedP = caches.match(keyHref).then(function (hit) {
-      return hit || caches.match(INDEX);   // 未知のパスは本体を返す
-    });
-    const freshP = fetch(req, { cache: 'no-cache' }).then(function (res) {
-      if (res && res.ok) {
-        const copy = res.clone();
-        return caches.open(CACHE)
-          .then(function (c) { return c.put(keyHref, copy); })
-          .then(function () { return res; });
-      }
-      return res;
-    });
-
-    // 裏での更新確認。waitUntil はイベント処理中に同期で渡す必要がある
-    e.waitUntil(
-      Promise.all([cachedP, freshP.catch(function () { return null; })])
-        .then(function (r) { return notifyIfNew(r[1], r[0]); })
-        .catch(function () {})
-    );
-
-    // キャッシュがあれば即返す。初回だけネットワークを待つ
     e.respondWith(
-      cachedP.then(function (cached) {
-        if (cached) return cached;
-        return freshP.catch(function () { return caches.match(INDEX); });
-      })
+      caches.match(key.href)
+        .then(function (hit) { return hit || caches.match(INDEX); })   // 未知のパスは本体を返す
+        .then(function (hit) {
+          if (hit) return hit;
+          return fetch(req).catch(function () { return caches.match(INDEX); });
+        })
     );
     return;
   }
 
-  // アイコンなどはキャッシュを優先する
+  // アイコンなどもキャッシュを優先する
   e.respondWith(
     caches.match(req).then(function (hit) {
       return hit || fetch(req).then(function (res) {
