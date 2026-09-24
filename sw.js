@@ -7,7 +7,7 @@
    ページ側はその状態を見て更新を知らせ、利用者が押したら差し替える。
    （以前はキャッシュとネットワークの ETag を比べていたが、
      同じ版でも通知が出ることがあり、押しても差し替わらなかった） */
-const CACHE = 'shotoku-sim-v19';
+const CACHE = 'shotoku-sim-v20';
 const INDEX = './index.html';
 const ASSETS = [
   './',
