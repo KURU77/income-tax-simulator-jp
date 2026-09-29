@@ -550,6 +550,12 @@ table.cmp td.lbl{font-family:var(--gothic); color:var(--ink-2); white-space:norm
 .dq-type .nm{font-family:var(--mincho); font-size:17px; font-weight:600; color:var(--ink)}
 .dq-type .sm{font-size:12px; color:var(--ink-2)}
 
+.syncmsg{font-size:13px; line-height:1.85; color:var(--ink-2)}
+.syncmsg b{color:var(--ink)}
+.syncstate{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.syncstate .pill{font-size:12px; padding:5px 10px; border-radius:2px; background:var(--card-2); color:var(--ink-2)}
+.syncstate .who{font-size:12px; color:var(--ink-3); overflow-wrap:anywhere}
+
 /* ---------- 入力中も結果が見える固定バー（狭い画面のみ） ---------- */
 .mbar{display:none}
 @media (max-width:999px){
@@ -828,6 +834,11 @@ footer.fine ul{margin:0; padding-left:1.2em}
           <label class="check"><input type="checkbox" id="kintouAuto" checked> 均等割額を住所から自動で決める</label>
           <p class="saveinfo">級地は生活保護法で市区町村ごとに定められた区分で、住民税が非課税になる所得の上限に使われます。公表資料からの自動判定は正確さを確かめきれなかったため、こちらは手動で選んでください。分からないときは、市区町村の「住民税が非課税になる方」の案内でご確認ください。</p>
         </div>
+      </section>
+
+      <section class="sect" data-view="sync">
+        <div class="sect-head"><h2>他の端末と同期</h2><span class="hint">パソコン・iPad・iPhone で同じ内容に</span></div>
+        <div class="sect-body" id="syncBody"></div>
       </section>
 
       <section class="sect" data-view="settings">
@@ -2636,11 +2647,21 @@ function collectState(){
   s.d = deps.map(function(d){ return {age:d.age, rev:d.rev, disab:d.disab, rokushin:d.rokushin}; });
   return s;
 }
+/* 同期の比較に使う本体部分（更新時刻を除いた中身） */
+function stateBody(s){
+  const o = Object.assign({}, s); delete o.u; return JSON.stringify(o);
+}
 let saveTimer = null;
 function saveState(){
   clearTimeout(saveTimer);
   saveTimer = setTimeout(function(){
-    try{ localStorage.setItem(STORE_KEY, JSON.stringify(collectState())); }catch(e){}
+    const st = collectState();
+    let prev = null;
+    try{ prev = JSON.parse(localStorage.getItem(STORE_KEY)||'null'); }catch(e){}
+    // 中身が変わったときだけ更新時刻を押す（同期の比較に使う）
+    st.u = (prev && stateBody(prev) === stateBody(st)) ? (prev.u || Date.now()) : Date.now();
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(st)); }catch(e){}
+    if(typeof syncSoon === 'function' && !SYNC.applying) syncSoon();
   }, 250);
 }
 function applyState(s){
@@ -2690,12 +2711,264 @@ function restoreState(){
 }
 
 /* ============================================================
+   5b-2. Google ドライブでの端末間同期
+   サーバーも SDK も使わず、ドライブ API を fetch で直接叩く。
+   認証は OAuth のリダイレクト方式。ホーム画面に追加した iPhone でも動く。
+   データは本人のドライブの「アプリ専用フォルダ」(appDataFolder) に入り、
+   開発者からは見えない。
+   ============================================================ */
+const GOOGLE_CLIENT_ID = '1088975026923-gg6ra210l32ql6g7hllg6i11qei8agm9.apps.googleusercontent.com';
+const SM_KEY = 'shotoku-simulator.sync';
+const SYNC_FILE = 'shotoku-simulator.json';
+let SM = (function(){ try{ return JSON.parse(localStorage.getItem(SM_KEY)) || {}; }catch(e){ return {}; } })();
+const SYNC = { running:false, again:false, timer:0, state:'off', detail:'', applying:false };
+
+function saveSM(){ try{ localStorage.setItem(SM_KEY, JSON.stringify(SM)); }catch(e){} }
+function clientId(){ return GOOGLE_CLIENT_ID || SM.clientId || ''; }
+function tokenOK(){ return !!(SM.token && SM.exp && Date.now() < SM.exp); }
+function redirectURI(){ return location.origin + location.pathname.replace(/index\.html$/, ''); }
+
+function login(silent){
+  if(!clientId()) return;
+  const st = String(Date.now()) + Math.random().toString(36).slice(2);
+  try{ sessionStorage.setItem('shotoku-oauth', JSON.stringify({st:st, back:location.hash || '#sync', silent:!!silent})); }catch(e){}
+  const q = {
+    client_id: clientId(), redirect_uri: redirectURI(), response_type: 'token',
+    scope: 'https://www.googleapis.com/auth/drive.appdata', include_granted_scopes: 'true', state: st
+  };
+  if(SM.email) q.login_hint = SM.email;
+  if(silent) q.prompt = 'none';
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams(q).toString();
+}
+/* 起動時：Google から戻ってきたところならトークンを受け取る */
+function takeOAuthReturn(){
+  const h = location.hash;
+  if(h.indexOf('access_token=') < 0 && h.indexOf('error=') < 0) return;
+  const q = new URLSearchParams(h.replace(/^#\/?/, ''));
+  let saved = {};
+  try{ saved = JSON.parse(sessionStorage.getItem('shotoku-oauth')) || {}; sessionStorage.removeItem('shotoku-oauth'); }catch(e){}
+  if(q.get('state') && q.get('state') === saved.st){
+    if(q.get('access_token')){
+      SM.token = q.get('access_token');
+      SM.exp = Date.now() + (Math.max(60, +q.get('expires_in') || 3600) - 120) * 1000;
+      SM.signedIn = true; SM.needLogin = false; saveSM();
+      SYNC.justLoggedIn = true;
+    }else if(q.get('error')){
+      SM.needLogin = true; saveSM();
+      if(!saved.silent) SYNC.flash = 'ログインできませんでした（' + q.get('error') + '）';
+    }
+  }
+  const back = (saved.back && saved.back.indexOf('access_token') < 0) ? saved.back : '#sync';
+  history.replaceState(null, '', location.pathname + location.search + back);
+}
+function logout(){
+  if(SM.token) fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(SM.token), {method:'POST', mode:'no-cors'}).catch(function(){});
+  SM = {}; saveSM();
+  setSyncState('off');
+}
+
+/* ---- ドライブ API ---- */
+const DRIVE = 'https://www.googleapis.com/drive/v3/files';
+const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
+function gfetch(url, opts){
+  opts = opts || {};
+  opts.headers = Object.assign({Authorization:'Bearer ' + SM.token}, opts.headers || {});
+  return fetch(url, opts).then(function(r){
+    if(!r.ok){ const e = new Error('Google ドライブ ' + r.status); e.status = r.status; throw e; }
+    return r;
+  });
+}
+function driveList(){
+  const u = DRIVE + '?spaces=appDataFolder&pageSize=100&fields=' + encodeURIComponent('files(id,name)');
+  return gfetch(u).then(function(r){ return r.json(); }).then(function(j){ return j.files || []; });
+}
+function driveGet(id){ return gfetch(DRIVE + '/' + id + '?alt=media').then(function(r){ return r.json(); }); }
+function driveCreate(name, body){
+  const b = 'shotoku' + Date.now();
+  const meta = JSON.stringify({name:name, parents:['appDataFolder']});
+  const blob = new Blob(['--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + meta
+    + '\r\n--' + b + '\r\nContent-Type: application/json\r\n\r\n', body, '\r\n--' + b + '--']);
+  return gfetch(UPLOAD + '?uploadType=multipart&fields=id',
+    {method:'POST', headers:{'Content-Type':'multipart/related; boundary=' + b}, body:blob});
+}
+function driveUpdate(id, body){
+  return gfetch(UPLOAD + '/' + id + '?uploadType=media',
+    {method:'PATCH', headers:{'Content-Type':'application/json'}, body:body});
+}
+function driveDelete(id){ return gfetch(DRIVE + '/' + id, {method:'DELETE'}).catch(function(e){ if(e.status !== 404) throw e; }); }
+
+/* ---- 同期本体 ----
+   入力はひとかたまりなので、新しいほうを採る（更新時刻で比較）。
+   両方の端末が前回の同期より後に変わっていたら、勝手に消さずに選んでもらう。 */
+function localState(){
+  try{ return JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); }catch(e){ return null; }
+}
+function setSyncState(st, detail){
+  SYNC.state = st; SYNC.detail = detail || '';
+  if(view === 'sync') renderSync();
+  const m = document.querySelector('.mitem[data-go=sync] .sm');
+  if(m) m.textContent = syncSummary();
+}
+function syncLabel(){
+  return ({
+    off:'同期していません', ok:'同期済み' + (SM.last ? '（' + agoLabel(SM.last) + '）' : ''),
+    syncing:'同期中…', login:'もう一度ログインしてください',
+    error:'同期できませんでした：' + SYNC.detail, offline:'オフライン（つながったら同期します）',
+    conflict:'どちらの内容を残すか選んでください'
+  })[SYNC.state] || '';
+}
+function agoLabel(t){
+  const m = Math.round((Date.now() - t) / 60000);
+  if(m < 1) return 'たった今';
+  if(m < 60) return m + '分前';
+  const h = Math.round(m / 60);
+  if(h < 24) return h + '時間前';
+  return new Date(t).toLocaleDateString('ja-JP');
+}
+function syncSoon(ms){
+  if(!SM.signedIn || SYNC.applying) return;
+  clearTimeout(SYNC.timer);
+  SYNC.timer = setTimeout(function(){ syncNow(false); }, ms == null ? 2500 : ms);
+}
+/* 受け取った内容を画面に反映する */
+function applyRemote(remote){
+  SYNC.applying = true;
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(remote)); }catch(e){}
+  try{
+    restoreState();
+    drawDeps();
+    render();
+  }catch(e){}
+  SYNC.applying = false;
+}
+function pushLocal(fileId){
+  const mine = localState();
+  if(!mine) return Promise.resolve();
+  const body = JSON.stringify(mine);
+  return (fileId ? driveUpdate(fileId, body) : driveCreate(SYNC_FILE, body));
+}
+function syncNow(interactive){
+  if(!clientId()) return Promise.resolve();
+  if(!SM.signedIn){ if(interactive) login(false); return Promise.resolve(); }
+  if(!tokenOK()){
+    if(interactive) login(false); else setSyncState('login');
+    return Promise.resolve();
+  }
+  if(!navigator.onLine){ setSyncState('offline'); return Promise.resolve(); }
+  if(SYNC.running){ SYNC.again = true; return Promise.resolve(); }
+  SYNC.running = true; setSyncState('syncing');
+
+  let files = [], target = null;
+  return driveList().then(function(list){
+    files = list.filter(function(x){ return x.name === SYNC_FILE; });
+    target = files[0] || null;
+    return target ? driveGet(target.id).catch(function(){ return null; }) : null;
+  }).then(function(remote){
+    const mine = localState();
+    const lastSync = SM.lastSyncedU || 0;
+    if(!remote) return pushLocal(target && target.id);
+    if(!mine){ applyRemote(remote); return; }
+    const ru = remote.u || 0, mu = mine.u || 0;
+    if(ru === mu) return;                                  // 同じ
+    if(ru > mu && mu <= lastSync){ applyRemote(remote); return; }   // 向こうだけ新しい
+    if(mu > ru && ru <= lastSync) return pushLocal(target.id);      // こちらだけ新しい
+    // 双方が前回の同期より後に変わっている
+    SYNC.conflict = {remote:remote, mine:mine, fileId:target.id};
+    const e = new Error('conflict'); e.conflict = true; throw e;
+  }).then(function(){
+    // 同じ名前のファイルが増えていたら片づける
+    return Promise.all(files.slice(1).map(function(x){ return driveDelete(x.id); }));
+  }).then(function(){
+    const now = localState();
+    SM.last = Date.now(); SM.lastSyncedU = (now && now.u) || 0; saveSM();
+    setSyncState('ok');
+  }).catch(function(e){
+    SYNC.applying = false;
+    if(e.conflict){ setSyncState('conflict'); }
+    else if(e.status === 401 || e.status === 403){ SM.token = ''; SM.exp = 0; saveSM(); setSyncState('login'); }
+    else if(!navigator.onLine) setSyncState('offline');
+    else setSyncState('error', e.message || '通信エラー');
+  }).then(function(){
+    SYNC.running = false;
+    if(SYNC.again){ SYNC.again = false; syncSoon(500); }
+  });
+}
+/* 食い違いの解決 */
+function resolveConflict(which){
+  const c = SYNC.conflict; if(!c) return;
+  SYNC.conflict = null;
+  if(which === 'remote'){ applyRemote(c.remote); SM.lastSyncedU = c.remote.u || 0; saveSM(); setSyncState('ok'); }
+  else {
+    const mine = localState();
+    if(mine){ mine.u = Date.now(); try{ localStorage.setItem(STORE_KEY, JSON.stringify(mine)); }catch(e){} }
+    setSyncState('syncing');
+    driveUpdate(c.fileId, JSON.stringify(localState())).then(function(){
+      SM.last = Date.now(); SM.lastSyncedU = (localState()||{}).u || 0; saveSM(); setSyncState('ok');
+    }).catch(function(e){ setSyncState('error', e.message || '通信エラー'); });
+  }
+}
+/* ---- 画面 ---- */
+function renderSync(){
+  const box = $('syncBody');
+  if(!box) return;
+  const st = SYNC.state;
+  const cls = {ok:'ok', syncing:'warn', off:'', login:'warn', error:'crit', offline:'warn', conflict:'crit'}[st] || '';
+  let h = '';
+  if(SYNC.flash){ h += '<div class="aud-note">'+esc(SYNC.flash)+'</div>'; SYNC.flash = ''; }
+
+  if(!SM.signedIn){
+    h += '<p class="syncmsg">Google アカウントでログインすると、パソコン・iPad・iPhone で<b>同じ入力内容</b>を使えます。'
+       + '入力した内容は<b>あなた自身の Google ドライブ</b>の「アプリ専用フォルダ」に保存され、開発者からは見えません。</p>'
+       + '<div><button type="button" class="btn" id="syncLogin">Google でログイン</button></div>'
+       + '<p class="saveinfo">ログインしなくても、この端末の中だけで今までどおり使えます。</p>';
+  }else{
+    h += '<div class="syncstate"><span class="pill '+cls+'">'+esc(syncLabel())+'</span>'
+       + (SM.email ? '<span class="who">'+esc(SM.email)+'</span>' : '')+'</div>';
+    if(st === 'conflict' && SYNC.conflict){
+      const c = SYNC.conflict;
+      h += '<div class="aud-note">この端末と、ほかの端末の両方が、前回の同期のあとに変わっています。どちらを残すか選んでください。'
+         + '選ばなかったほうの入力内容は上書きされます。</div>'
+         + '<div class="cmpwrap"><table class="cmp"><tr><th></th><th class="c">この端末</th><th class="c">ほかの端末</th></tr>'
+         + '<tr><td class="lbl">最後に変えた時刻</td><td>'+esc(agoLabel(c.mine.u||0))+'</td><td>'+esc(agoLabel(c.remote.u||0))+'</td></tr>'
+         + '<tr><td class="lbl">給与の収入</td><td>'+yen(Number((c.mine.f||{}).kyuyoRev ? String(c.mine.f.kyuyoRev).replace(/[^0-9]/g,'') : 0))+'</td>'
+         + '<td>'+yen(Number((c.remote.f||{}).kyuyoRev ? String(c.remote.f.kyuyoRev).replace(/[^0-9]/g,'') : 0))+'</td></tr>'
+         + '<tr><td class="lbl">扶養親族</td><td>'+((c.mine.d||[]).length)+'人</td><td>'+((c.remote.d||[]).length)+'人</td></tr>'
+         + '</table></div>'
+         + '<div class="wi-acts"><button type="button" class="btn" id="keepMine">この端末を残す</button>'
+         + '<button type="button" class="btn" id="keepRemote">ほかの端末を残す</button></div>';
+    }else{
+      h += '<div class="wi-acts"><button type="button" class="btn" id="syncNowBtn">いま同期する</button>'
+         + '<button type="button" class="btn" id="syncOut">ログアウト</button></div>';
+    }
+    h += '<p class="saveinfo">入力を変えると数秒後に自動で送ります。ほかの端末では、開いたときに受け取ります。'
+       + 'オフラインのときは何もせず、つながってから同期します。</p>';
+  }
+  h += '<p class="saveinfo">保存先はあなたの Google ドライブの「アプリ専用フォルダ」です。'
+     + 'ドライブの画面には出てきません。やめたいときはログアウトしてください（ドライブ側の削除は Google アカウントの'
+     + '「アプリのデータ」から行えます）。</p>';
+  box.innerHTML = h;
+
+  const on = function(id, fn){ const e = $(id); if(e) e.addEventListener('click', fn); };
+  on('syncLogin', function(){ login(false); });
+  on('syncNowBtn', function(){ syncNow(true); });
+  on('syncOut', function(){ logout(); renderSync(); render(); });
+  on('keepMine', function(){ resolveConflict('mine'); });
+  on('keepRemote', function(){ resolveConflict('remote'); });
+}
+
+function syncSummary(){
+  if(!SM.signedIn) return 'ログインすると他の端末と同じ内容にできます';
+  return (SM.email ? SM.email + '・' : '') + syncLabel();
+}
+
+/* ============================================================
    5c. トップページと画面の切り替え
    ============================================================ */
 const VIEWS = {
   home:{t:'ホーム'}, diag:{t:'あなたのタイプを判定'},
   ippan:{t:'一般向け'}, fuyo:{t:'扶養親族向け'}, tokutei:{t:'特定扶養親族向け'}, income:{t:'収入'}, you:{t:'あなたの状況'}, spouse:{t:'配偶者'},
-  deps:{t:'扶養親族'}, deduction:{t:'所得控除'}, area:{t:'お住まいと住民税'}, settings:{t:'試算の設定'},
+  deps:{t:'扶養親族'}, deduction:{t:'所得控除'}, area:{t:'お住まいと住民税'},
+  sync:{t:'他の端末と同期'}, settings:{t:'試算の設定'},
   detail:{t:'税額の明細と試算枠'}, family:{t:'扶養している人と手取り'}
 };
 const esc = function(t){
@@ -2732,6 +3005,9 @@ const MENU = [
   {v:'area', ic:'住', nm:'お住まいと住民税', sm:function(I){
     return (I.pref ? I.pref+(I.city||'') : '未設定')+'・均等割 '+yen(I.jumin.kintou);
   }},
+  {v:'sync', ic:'同', nm:'他の端末と同期',
+    when:function(){ return !!clientId(); },        // ネイティブ版など、同期を持たない版では出さない
+    sm:function(){ return syncSummary(); }},
   {v:'settings', ic:'設', nm:'試算の設定', sm:function(I){
     return I.kyuchi+'級地・メーターは'+(I.channel==='kyuyo'?'給与':'業務委託')+'基準';
   }},
@@ -2757,6 +3033,7 @@ function renderMenu(I, R){
 let view = 'home';
 function setView(v){
   if(!VIEWS[v]) v = 'home';
+  if(v === 'sync' && !clientId()) v = 'home';       // 同期を持たない版
   view = v;
   document.body.dataset.screen = v;
   Array.prototype.forEach.call(document.querySelectorAll('[data-view]'), function(el){
@@ -2768,6 +3045,7 @@ function setView(v){
   if(v === 'diag') fillDiag();
   $('viewTitle').textContent = VIEWS[v].t;
   document.querySelector('.cols').hidden = (v === 'family');
+  if(v === 'sync') renderSync();
   window.scrollTo(0, 0);
   if(v === 'family') renderFuyo(collect());   // 隠れている間は幅が測れないので描き直す
   updBar();
@@ -2877,11 +3155,24 @@ syncCity();
 if(!restoreState()) syncYear();   // 前回の入力があれば復元する
 drawDeps();
 render();
+takeOAuthReturn();          // Google から戻ってきたところならトークンを受け取る
 let firstView = (location.hash || '#home').slice(1);
 if(firstView === 'home'){
   try{ if(!localStorage.getItem(DIAG_KEY)) firstView = 'diag'; }catch(e){}   // 初回だけ判定ページから
 }
 setView(firstView);
+
+/* 同期：起動時に一度、オンラインに戻ったときにも */
+if(SM.signedIn){
+  setSyncState(tokenOK() ? 'ok' : 'login');
+  if(tokenOK()) syncSoon(400);
+  else if(!SYNC.justLoggedIn) login(true);      // 黙って取り直せるなら取り直す
+}
+if(SYNC.justLoggedIn) goto('sync');
+window.addEventListener('online', function(){ if(SM.signedIn) syncSoon(800); });
+document.addEventListener('visibilitychange', function(){
+  if(!document.hidden && SM.signedIn && tokenOK()) syncSoon(600);
+});
 </script>
 
 <script>
