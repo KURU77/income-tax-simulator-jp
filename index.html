@@ -231,7 +231,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{
 /* ---------- 扶養親族 ---------- */
 #depList{display:flex; flex-direction:column}
 .dep{
-  display:grid; grid-template-columns:92px 152px 172px minmax(0,1fr) auto;
+  display:grid; grid-template-columns:84px 140px 140px 160px minmax(0,1fr) auto;
   gap:10px 12px; align-items:end;
   padding:12px 0; border-bottom:1px dotted var(--rule);
 }
@@ -988,7 +988,10 @@ footer.fine ul{margin:0; padding-left:1.2em}
       <li>勤務先の社会保険（106万円）の壁は、勤務先の規模や週の所定労働時間で扱いが変わるため目安です。</li>
       <li>健康保険の被扶養者は、年収の上限（130万円未満／19歳以上23歳未満で配偶者でない人は令和7年10月から150万円未満／60歳以上・障害者は180万円未満）に加えて、同居なら被保険者の年収の2分の1未満、別居なら被保険者からの仕送り額より少ないことが要件です。「税額の明細」の判定カードで、同居・別居の両方を並べて表示します。業務委託の収入から必要経費を引けるかは保険者によって異なるため、入力で切り替えられるようにしています。最終的に判断するのは加入先の保険者です。</li>
       <li>令和6年分以前の年分は、いまのところ選べないようにしています。</li>
-      <li>青色申告特別控除は、要件（複式簿記・e-Tax等）を満たしている前提で差し引いています。</li>
+      <li>青色申告特別控除は、要件（複式簿記・e-Tax等）を満たしている前提で差し引いています。雑所得（業務）を選んだ場合は差し引きません。</li>
+      <li>勤労学生控除は「合計所得が上限以下」かつ「勤労に基づく所得以外が10万円以下」で判定しています。業務委託（事業所得・雑所得（業務））は自分の勤労による所得として扱い、公的年金等・配当・不動産などは勤労によらない所得として10万円の判定に乗せています。人を雇って事業をしている場合など、業務委託の収入に勤労によらない部分があるときは実態で判断してください。</li>
+      <li>扶養親族・配偶者の合計所得は、給与収入と「給与以外の所得」の合計で判定します。給与以外の所得には、業務委託（必要経費を引いたあと）・公的年金等（控除を引いたあと）・配当などの<b>所得金額</b>を入れてください（収入金額ではありません）。</li>
+      <li>特定親族特別控除と扶養控除（特定扶養親族）は、控除額そのものはどちらも所得税63万円・住民税45万円で同じです。違うのは段階の有無と、住民税の調整控除の対象かどうかです。「特定扶養親族向け」のページで、扶養している人の税額が実際にいくら減るかまで並べて表示します。</li>
     </ul>
   </footer>
 </div>
@@ -1321,7 +1324,8 @@ function calc(I){
       || (I.spouse && I.spouse.income<=lim && I.spouse.disab.indexOf('special')===0)
       || I.deps.some(function(d){ return d.income<=lim && d.disab.indexOf('special')===0; });
     if(I.kyuyoRev>8500000 && (hasYoungDep || hasSpecialDisab || I.disab==='special')){
-      adjChild = Math.floor((Math.min(I.kyuyoRev,10000000)-8500000)*0.1);
+      // 1円未満の端数は切り上げる（所得税法ではなく措置法の定め）
+      adjChild = Math.ceil((Math.min(I.kyuyoRev,10000000)-8500000)*0.1);
     }
     if(kyuyo0>0 && nenkin>0){
       adjBoth = Math.max(0, Math.min(kyuyo0-adjChild,100000) + Math.min(nenkin,100000) - 100000);
@@ -1392,7 +1396,12 @@ function calc(I){
   }
   const wo = widowOptions(y).filter(function(o){ return o[0]===I.widow; })[0];
   if(wo && wo[0]!=='none' && total<=5000000) add(wo[1]+'控除', wo[2], wo[3], wo[4]);
-  const kinroOK = I.student && total<=studentLimit(y) && (total - kyuyo)<=100000;
+  // 勤労学生控除の要件は「合計所得が上限以下」かつ「勤労に基づく所得以外が10万円以下」。
+  // 勤労による所得は給与だけではない。自分で働いて得る業務委託（事業所得・雑所得（業務））も
+  // 勤労による所得にあたるので、ここでは給与と業務委託を勤労分として扱う。
+  // 公的年金等・配当・不動産などは勤労によらない所得なので、10万円の判定に乗せる。
+  const hiKinro = nenkin + I.otherInc;
+  const kinroOK = I.student && total<=studentLimit(y) && hiKinro<=100000;
   if(kinroOK) add('勤労学生控除', 270000, 260000, 10000);
 
   /* --- 物的控除 --- */
@@ -1530,7 +1539,8 @@ function fvSeries(I, subj){
       J.spouse = Object.assign({}, I.spouse, {kyuyoRev:rev, income:kyuyoIncome(rev,y)+I.spouse.otherInc});
     }else{
       J.deps = I.deps.slice();
-      J.deps[subj.idx] = Object.assign({}, I.deps[subj.idx], {rev:rev, income:kyuyoIncome(rev,y)});
+      J.deps[subj.idx] = Object.assign({}, I.deps[subj.idx],
+        {rev:rev, income:kyuyoIncome(rev,y) + (I.deps[subj.idx].other||0)});
     }
     const R = calc(J);
     let it = 0, rt = 0;
@@ -1857,6 +1867,8 @@ function depRow(d, i){
       '<input type="number" min="0" max="120" value="'+d.age+'" data-k="age" aria-label="扶養親族'+(i+1)+'の年齢"></div>'+
     '<div class="f"><span class="cap">その人の給与収入</span>'+
       '<input class="yen" type="text" inputmode="numeric" value="'+d.rev.toLocaleString('ja-JP')+'" data-k="rev" aria-label="扶養親族'+(i+1)+'の給与収入"></div>'+
+    '<div class="f"><span class="cap">給与以外の所得</span>'+
+      '<input class="yen" type="text" inputmode="numeric" value="'+(d.other||0).toLocaleString('ja-JP')+'" data-k="other" aria-label="扶養親族'+(i+1)+'の給与以外の所得"></div>'+
     '<div class="f wide"><span class="cap">障害者控除</span><select data-k="disab" aria-label="扶養親族'+(i+1)+'の障害者控除">'+
       '<option value="none">対象外</option><option value="general">一般の障害者</option>'+
       '<option value="special">特別障害者</option><option value="special_live">特別障害者（同居）</option>'+
@@ -1871,6 +1883,7 @@ function depRow(d, i){
       const k = inp.dataset.k;
       if(k==='age') d.age = parseInt(inp.value||'0',10)||0;
       else if(k==='rev') d.rev = parseInt((inp.value||'').replace(/[^0-9]/g,'')||'0',10)||0;
+      else if(k==='other') d.other = parseInt((inp.value||'').replace(/[^0-9]/g,'')||'0',10)||0;
       else if(k==='rokushin') d.rokushin = inp.checked;
       else d.disab = inp.value;
       render();
@@ -1878,6 +1891,9 @@ function depRow(d, i){
   });
   el.querySelector('input[data-k=rev]').addEventListener('blur', function(e){
     e.target.value = d.rev ? d.rev.toLocaleString('ja-JP') : '0';
+  });
+  el.querySelector('input[data-k=other]').addEventListener('blur', function(e){
+    e.target.value = (d.other||0).toLocaleString('ja-JP');
   });
   el.querySelector('button').addEventListener('click', function(){
     deps = deps.filter(function(x){ return x!==d; }); drawDeps(); render();
@@ -1891,7 +1907,7 @@ function drawDeps(){
   $('depEmpty').hidden = deps.length>0;
 }
 $('addDep').addEventListener('click', function(){
-  deps.push({id:++depSeq, age:16, rev:0, disab:'none', rokushin:false});
+  deps.push({id:++depSeq, age:16, rev:0, other:0, disab:'none', rokushin:false});
   drawDeps(); render();
 });
 
@@ -1914,7 +1930,10 @@ function collect(){
     disab:$('disab').value, widow:$('widow').value, student:$('student').checked,
     depOfParent:$('depOfParent').checked, depOfSpouse:$('depOfSpouse').checked,
     spouse:sp,
-    deps: deps.map(function(d){ return {age:d.age, income:kyuyoIncome(d.rev,year), rev:d.rev, disab:d.disab, rokushin:d.rokushin}; }),
+    deps: deps.map(function(d){
+      return {age:d.age, income:kyuyoIncome(d.rev,year)+(d.other||0), rev:d.rev, other:d.other||0,
+              disab:d.disab, rokushin:d.rokushin};
+    }),
     shakai:num('shakai'), ideco:num('ideco'), hoken:num('hoken'), other:num('other'),
     pKyuyo:num('pKyuyo'), pShakai:num('pShakai'),
     kenpoLive:$('kenpoLive').value, shiokuri:num('shiokuri'), kenpoKeihi:$('kenpoKeihi').value,
@@ -1973,7 +1992,7 @@ function render(){
     : '都道府県を選ぶと、その地域の均等割と所得割で計算します。';
   deps.forEach(function(d){
     if(!d._el) return;
-    const inc = kyuyoIncome(d.rev, year), limit = fuyoLimit(year);
+    const inc = kyuyoIncome(d.rev, year) + (d.other||0), limit = fuyoLimit(year);
     const tag = d._el.querySelector('.tag');
     const rk = d._el.querySelector('label.check');
     rk.style.display = d.age>=70 ? 'inline-flex' : 'none';
@@ -2433,6 +2452,67 @@ function heroFuyo(I, R, rows){
   });
 }
 
+/* 扶養控除（特定扶養親族）と特定親族特別控除では、控除額そのものは同じ63万円。
+   違うのは「段階があるか」と「住民税の調整控除の対象か」の2点で、
+   後者のせいで控除額が同じでも親の住民税が変わる。実額まで並べて出す。 */
+function kojoCompare(I){
+  const y = I.year, lim = fuyoLimit(y);
+  if(y < 2025) return '';
+  if(!I.depOfParent) return '';
+  const base = parentTax(I, 1240000);          // どちらも受けられないとき
+  const cols = [
+    {k:'扶養控除<br>（特定扶養親族）', t:0,       range:manOf(lim)+'以下',
+     rev:manOf(revForIncome(lim, y))+'以下', adj:true},
+    {k:'特定親族特別控除<br>（満額）', t:850000,  range:manOf(lim)+'超 85万円以下',
+     rev:manOf(revForIncome(lim,y))+'超 '+manOf(revForIncome(850000,y))+'以下', adj:false},
+    {k:'特定親族特別控除<br>（最小）', t:1230000, range:'120万円超 123万円以下',
+     rev:manOf(revForIncome(1200000,y))+'超 '+manOf(revForIncome(1230000,y))+'以下', adj:false}
+  ].map(function(c){ c.p = parentTax(I, c.t); return c; });
+
+  const row = function(label, fn, clsFn){
+    return '<tr><td class="lbl">'+label+'</td>'
+      + cols.map(function(c){
+          const cls = clsFn ? clsFn(c) : '';
+          return '<td'+(cls?' class="'+cls+'"':'')+'>'+fn(c)+'</td>';
+        }).join('')+'</tr>';
+  };
+  let h = '<h3 class="aud-h3">控除額は同じ63万円。違うのは段階と住民税の調整控除</h3>';
+  h += '<div class="cmpwrap"><table class="cmp"><tr><th></th>'
+     + cols.map(function(c){ return '<th class="c">'+c.k+'</th>'; }).join('')+'</tr>';
+  h += row('あなたの合計所得', function(c){ return c.range; });
+  h += row('給与だけなら年収', function(c){ return c.rev; });
+  h += row('親の<b>所得税</b>の控除額', function(c){ return yen(c.p.ded); });
+  h += row('親の<b>住民税</b>の控除額', function(c){ return yen(c.p.dedRt); });
+  h += row('住民税の調整控除', function(c){ return c.adj ? '対象（人的控除差18万円）' : '<b>対象外</b>'; },
+           function(c){ return c.adj ? 'good' : 'bad'; });
+  h += row('　この親の調整控除の額', function(c){ return yen(c.p.chosei); });
+  h += row('親の税額が<b>実際に減る額</b>', function(c){ return yen(base.tax - c.p.tax); },
+           function(c){ return (base.tax - c.p.tax) > 0 ? 'good' : ''; });
+  h += '</table></div>';
+
+  const dropAdj = (base.tax - cols[0].p.tax) - (base.tax - cols[1].p.tax);  // 満額どうしの差
+  h += '<ul class="aud-tips" style="font-size:12px">';
+  h += '<li>控除額は所得税 <b>63万円</b>・住民税 <b>45万円</b>で、どちらの制度でも同じです。'
+     + '「実際に減る額」が違うのは、<b>住民税の調整控除</b>のぶんだけです。</li>';
+  h += '<li>調整控除は、所得税と住民税の控除額の差（特定扶養親族なら<b>18万円</b>）に応じて住民税を減らす仕組みです。'
+     + '扶養控除は対象ですが、<b>特定親族特別控除は対象外</b>。そのため控除額が同じ63万円のままでも、'
+     + '切り替わるときに親の住民税が増えることがあります。'
+     + (dropAdj>0
+        ? 'いまの入力では <b>'+yen(dropAdj)+'</b> 増えます。'
+        : 'ただし<b>いまの入力では差は出ません</b>。調整控除は親の課税所得が200万円を超えると'
+          + '「人的控除の差 −（課税所得 − 200万円）」で計算され、この親は課税所得が '
+          + yen(cols[0].p.taxableRt)+' あるため、どちらでも最低額の2,500円になるからです。'
+          + '親の課税所得が200万円以下なら、18万円 × 5% ＝ <b>最大9,000円</b>の差が出ます。')
+     + '</li>';
+  h += '<li>扶養控除には段階がなく、合計所得 '+manOf(lim)+' を1円でも超えると0になります。'
+     + '特定親族特別控除はそこから引き継いで、合計所得123万円まで段階的に減ります。'
+     + '<b>どちらか一方しか受けられません。</b></li>';
+  h += '<li>金額は、扶養している人の給与収入 '+yen(I.pKyuyo)+'・社会保険料 '+yen(I.pShakai)
+     + ' の人が、あなただけを扶養しているものとして計算しています。「あなたの状況」で変えられます。</li>';
+  h += '</ul>';
+  return h;
+}
+
 /* 特定親族特別控除を受けるための手順 */
 function manualTokutei(I){
   const y = I.year, lim = fuyoLimit(y);
@@ -2518,7 +2598,8 @@ const AUD = {
   },
   tokutei: {
     t:'特定扶養親族向け', ic:'特', who:'19〜22歳で親の扶養に入っている人',
-    hero:heroTokutei, manual:manualTokutei, manualTitle:'特定親族特別控除を受けるための手順',
+    hero:heroTokutei, compare:kojoCompare,
+    manual:manualTokutei, manualTitle:'特定親族特別控除を受けるための手順',
     walls:['特定親族特別控除（満額）','特定親族特別控除（上限）','親などの扶養控除','勤労学生控除','住民税・均等割','住民税・所得割','所得税'],
     links:['you','income','detail'],
     why:function(I){ return I.age+'歳で親の扶養に入っているので特定扶養親族です。親が受ける控除が大きい（63万円）分、外れたときの影響も大きくなります。'; },
@@ -2571,6 +2652,7 @@ function renderAudience(I, R, rows){
       h += '<div class="aud-hero"><div class="lb2">このタイプの線はすべて超えています</div><div class="figs">'
          + '<div class="fig"><span class="lb2">年間の税額</span><b class="big crit">'+yen(R.taxAll)+'</b></div></div></div>';
     }
+    if(A.compare) h += A.compare(I);
     if(sel.length) h += '<div class="walls">'+sel.map(function(r){ return wallHTML(r, R); }).join('')+'</div>';
     if(a!=='ippan'){
       const pb = parentBurden(I, R.total);
@@ -2652,9 +2734,12 @@ function parentTax(I, myTotal){
     kyuchi:I.kyuchi, kintou:I.kintou, channel:'kyuyo'
   };
   const R = calc(base), key = asSpouse ? 'spouse' : 'dep0';
-  let ded = 0;
-  R.deductions.forEach(function(e){ if(e.key===key) ded += e.it; });
-  return {tax:R.taxAll, taxIt:R.taxIt, taxRt:R.taxRt, ded:ded};
+  let ded = 0, dedRt = 0, name = '';
+  R.deductions.forEach(function(e){
+    if(e.key===key){ ded += e.it; dedRt += e.rt; if(!name) name = e.name; }
+  });
+  return {tax:R.taxAll, taxIt:R.taxIt, taxRt:R.taxRt, ded:ded, dedRt:dedRt,
+          chosei:R.chosei, taxableRt:R.taxableRt, name:name};
 }
 function parentBurden(I, myTotal){
   if(!I.depOfParent && !I.depOfSpouse) return null;
@@ -2820,7 +2905,7 @@ function collectState(){
   });
   s.t = {k:tryNumOf('tryKyuyo'), j:tryNumOf('tryJigyo')};
   MFIELDS.forEach(function(f){ s.m[f.id] = {on:monthly[f.id].on, v:monthly[f.id].v.slice()}; });
-  s.d = deps.map(function(d){ return {age:d.age, rev:d.rev, disab:d.disab, rokushin:d.rokushin}; });
+  s.d = deps.map(function(d){ return {age:d.age, rev:d.rev, other:d.other||0, disab:d.disab, rokushin:d.rokushin}; });
   return s;
 }
 /* 同期の比較に使う本体部分（更新時刻を除いた中身） */
@@ -2857,7 +2942,7 @@ function applyState(s){
   if(s.f && s.f.city !== undefined) $('city').value = s.f.city;   // 選択肢を作り直したあとに戻す
   YEN_IDS.forEach(function(id){ $(id).value = num(id).toLocaleString('ja-JP'); });
   deps = (s.d||[]).map(function(d){
-    return {id:++depSeq, age:Number(d.age)||0, rev:Number(d.rev)||0,
+    return {id:++depSeq, age:Number(d.age)||0, rev:Number(d.rev)||0, other:Number(d.other)||0,
             disab:d.disab||'none', rokushin:!!d.rokushin};
   });
   MFIELDS.forEach(function(f){
