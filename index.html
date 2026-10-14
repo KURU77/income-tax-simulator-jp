@@ -504,6 +504,10 @@ table.cmp td.bad{color:var(--crit); font-weight:700}
 table.cmp tr.cur td{background:var(--accent-soft)}
 .cmpwrap{overflow-x:auto; overscroll-behavior-x:contain; max-width:100%; margin-top:12px}
 table.cmp th.c{text-align:right}
+table.cmp th.sel,table.cmp td.sel{background:var(--accent-soft)}
+.parentcard.kenpo{border-left-color:var(--accent)}
+.parentcard.kenpo .pc-big{font-size:19px; color:var(--crit)}
+.parentcard.kenpo .pc-big.zero{color:var(--ok)}
 table.cmp td.lbl{font-family:var(--gothic); color:var(--ink-2); white-space:normal; text-align:left; padding-left:0; min-width:7em}
 .aud-hero .zero{font-size:12px; color:var(--ok); font-weight:700; margin-top:8px}
 .aud-hero .zline{
@@ -723,6 +727,30 @@ footer.fine ul{margin:0; padding-left:1.2em}
                 <div class="conv" id="pShakai_c"></div>
               </div>
             </div>
+            <p class="saveinfo">ここから下は<b>健康保険の扶養（被扶養者）</b>の判定に使います。税の控除とは別の条件です。</p>
+            <div class="grid2">
+              <div class="row">
+                <label class="lb" for="kenpoLive">その人と <span class="sub">同居か別居かで条件が変わります</span></label>
+                <select id="kenpoLive">
+                  <option value="same">同居している（同一世帯）</option>
+                  <option value="apart">別居している</option>
+                </select>
+                <div class="conv" id="kenpoLive_c"></div>
+              </div>
+              <div class="row" id="shiokuriRow" hidden>
+                <label class="lb" for="shiokuri">その人からの仕送り（月額） <span class="sub">振込など証明できるもの</span></label>
+                <input class="yen" type="text" inputmode="numeric" id="shiokuri">
+                <div class="conv" id="shiokuri_c"></div>
+              </div>
+              <div class="row">
+                <label class="lb" for="kenpoKeihi">業務委託の収入の見方 <span class="sub">保険者によって違います</span></label>
+                <select id="kenpoKeihi">
+                  <option value="none">経費を引かない（協会けんぽの原則）</option>
+                  <option value="sub">必要経費を引く（認める健保組合の場合）</option>
+                </select>
+                <div class="conv" id="kenpoKeihi_c"></div>
+              </div>
+            </div>
           </div>
           <label class="check"><input type="checkbox" id="depOfSpouse"> 配偶者の扶養に入っている（配偶者控除の壁を表示）</label>
         </div>
@@ -891,6 +919,7 @@ footer.fine ul{margin:0; padding-left:1.2em}
         <div class="sect-head"><h2>税額の明細と試算枠</h2><span class="hint">あと稼いだ場合も試せます</span></div>
         <div class="sect-body">
           <div class="parentcard" id="parentCard" hidden></div>
+          <div class="parentcard kenpo" id="kenpoCard"></div>
 
           <div class="whatif">
             <div class="wi-top"><span class="wi-ttl">試算枠</span><span class="wi-sub">あと稼いだ場合を試す</span></div>
@@ -956,7 +985,9 @@ footer.fine ul{margin:0; padding-left:1.2em}
       <li>所得税額は速算表で計算し、復興特別所得税（2.1%）を加えています。住民税は所得割10%＋均等割で、調整控除は基礎控除分（人的控除差5万円）などを反映した簡易計算です。</li>
       <li>令和8年分は、令和8年度税制改正（令和8年12月1日施行）を反映しています。給与所得控除の最低保障額74万円・基礎控除104万円（合計所得489万円以下）・扶養親族等の所得要件62万円・勤労学生控除89万円で、住民税の基礎控除43万円と非課税限度額は据え置きです。出典は国税庁「令和８年４月源泉所得税の改正のあらまし」。</li>
       <li>給与所得は速算式で求めており、収入660万円未満の場合に使う「簡易給与所得表」の1,000円単位の区分は考慮していません（数百円の差が出ることがあります）。ただし令和8年分の収入220万円未満については、改正で定められた別表どおりに計算しています。</li>
-      <li>社会保険（106万円・130万円）の壁は加入する健康保険や勤務先の規模で扱いが変わるため、目安として表示しています。業務委託の収入は、健康保険組合によって必要経費の扱いが異なります。</li>
+      <li>勤務先の社会保険（106万円）の壁は、勤務先の規模や週の所定労働時間で扱いが変わるため目安です。</li>
+      <li>健康保険の被扶養者は、年収の上限（130万円未満／19歳以上23歳未満で配偶者でない人は令和7年10月から150万円未満／60歳以上・障害者は180万円未満）に加えて、同居なら被保険者の年収の2分の1未満、別居なら被保険者からの仕送り額より少ないことが要件です。「税額の明細」の判定カードで、同居・別居の両方を並べて表示します。業務委託の収入から必要経費を引けるかは保険者によって異なるため、入力で切り替えられるようにしています。最終的に判断するのは加入先の保険者です。</li>
+      <li>令和6年分以前の年分は、いまのところ選べないようにしています。</li>
       <li>青色申告特別控除は、要件（複式簿記・e-Tax等）を満たしている前提で差し引いています。</li>
     </ul>
   </footer>
@@ -978,6 +1009,11 @@ const YEARS = [
   {y:2026, label:'令和8年',  note:'<b>令和8年度税制改正（令和8年12月1日施行）</b>を反映。給与所得控除の最低保障が74万円、基礎控除は合計所得489万円以下で104万円になり、所得税の壁は<b>178万円</b>へ。扶養親族等の所得要件は62万円（給与収入136万円）、勤労学生控除は89万円（同163万円）。住民税の基礎控除は43万円のまま据え置きで、非課税ラインは119万円です。'},
 ];
 const YMAP = {}; YEARS.forEach(function(o){YMAP[o.y]=o;});
+/* 令和6年分以前は、いまのところ選べないようにしている。
+   制度の差が大きく、ひととおり確かめきれていないため。
+   計算のコードは残してあるので、復活させるときは YEAR_MIN を下げる。 */
+const YEAR_MIN = 2025;
+const YEARS_ON = YEARS.filter(function(o){ return o.y >= YEAR_MIN; });
 
 /* 給与所得控除 */
 function kyuyoDeduction(rev, y){
@@ -1642,7 +1678,7 @@ function fvDraw(S, I, subj){
    4. 入出力
    ============================================================ */
 const $ = function(id){ return document.getElementById(id); };
-const YEN_IDS = ['kyuyoRev','jigyoRev','keihi','nenkinRev','otherInc','spKyuyo','spOther','shakai','ideco','hoken','other','kintou','pKyuyo','pShakai'];
+const YEN_IDS = ['kyuyoRev','jigyoRev','keihi','nenkinRev','otherInc','spKyuyo','spOther','shakai','ideco','hoken','other','kintou','pKyuyo','pShakai','shiokuri'];
 let year = 2025;
 let deps = [];
 let depSeq = 0;
@@ -1668,7 +1704,7 @@ const num = function(id){ const v = ($(id).value||'').replace(/[^0-9]/g,''); ret
 })();
 
 /* 年分のタブ */
-YEARS.forEach(function(o){
+YEARS_ON.forEach(function(o){
   const b = document.createElement('button');
   b.type = 'button'; b.textContent = o.label; b.dataset.y = o.y;
   b.addEventListener('click', function(){ year = o.y; syncYear(); render(); });
@@ -1881,6 +1917,7 @@ function collect(){
     deps: deps.map(function(d){ return {age:d.age, income:kyuyoIncome(d.rev,year), rev:d.rev, disab:d.disab, rokushin:d.rokushin}; }),
     shakai:num('shakai'), ideco:num('ideco'), hoken:num('hoken'), other:num('other'),
     pKyuyo:num('pKyuyo'), pShakai:num('pShakai'),
+    kenpoLive:$('kenpoLive').value, shiokuri:num('shiokuri'), kenpoKeihi:$('kenpoKeihi').value,
     kyuchi:$('kyuchi').value, kintou:num('kintou'), channel:$('channel').value,
     pref:$('pref').value, city:$('city').value
   };
@@ -1917,6 +1954,10 @@ function render(){
   $('spAge_c').textContent = I.spouse && I.spouse.age>=70 ? '老人控除対象配偶者' : '';
   $('spBox').hidden = !$('spExists').checked;
   $('parentBox').hidden = !($('depOfParent').checked || $('depOfSpouse').checked);
+  $('shiokuriRow').hidden = $('kenpoLive').value !== 'apart';
+  $('shiokuri_c').textContent = I.shiokuri ? '年 '+yen(I.shiokuri*12) : '';
+  $('kenpoLive_c').textContent = I.kenpoLive==='apart'
+    ? '仕送り額より収入が少ないことが要件' : '扶養している人の年収の2分の1未満が要件';
   // 住所から決まった住民税の内訳を知らせる
   const jr = I.jumin;
   $('kintou').readOnly = $('kintouAuto').checked;
@@ -2024,8 +2065,6 @@ function render(){
   /* --- 社会保険の目安 --- */
   const shaho = [];
   const kyuyoOnly = I.kyuyoRev;
-  const revForKenpo = I.kyuyoRev + Math.max(0, I.jigyoRev - I.keihi);
-  const limit130 = (I.age>=60 || I.disab!=='none') ? 1800000 : 1300000;
   if(!I.student){
     let note = '週20時間以上・月額8.8万円以上・勤務先の規模などの条件つき';
     if(monthly.kyuyoRev.on){
@@ -2036,20 +2075,21 @@ function render(){
     }
     shaho.push(['106万円の壁（勤務先の社会保険）', 1060000 - kyuyoOnly, note]);
   }
-  shaho.push([(limit130/10000)+'万円の壁（家族の健康保険の被扶養者）', limit130 - revForKenpo,
-    (I.age>=60||I.disab!=='none'?'60歳以上・障害者は180万円':'給与＋業務委託の収入。経費の扱いは保険者により異なります')]);
+  // 健康保険の被扶養者は、同居・別居で条件が変わるので専用のカードで出す
+  const K = kenpoCheck(I);
+  $('kenpoCard').innerHTML = kenpoCardHTML(I, K);
 
   /* --- 明細 --- */
   const t = function(label, value, cls){
     return '<tr'+(cls?' class="'+cls+'"':'')+'><td>'+label+'</td><td class="v'+(value===0?' zero':'')+'">'+yen(value)+'</td></tr>';
   };
   let h = '';
-  h += '<h3>社会保険の壁（目安）</h3><table class="led">';
+  if(shaho.length) h += '<h3>勤務先の社会保険（目安）</h3><table class="led">';
   shaho.forEach(function(s){
     h += '<tr><td>'+s[0]+'</td><td class="v" style="color:'+(s[1]>0?'var(--ink)':'var(--crit)')+'">'+(s[1]>0?'あと '+yen(s[1]):yen(-s[1])+' 超過')+'</td></tr>';
     h += '<tr><td class="note" colspan="2">'+s[2]+'</td></tr>';
   });
-  h += '</table>';
+  if(shaho.length) h += '</table>';
 
   h += '<h3>所得の内訳</h3><table class="led">';
   h += t('給与所得（収入 '+yen(I.kyuyoRev)+' − 給与所得控除 '+yen(I.kyuyoRev - R.kyuyo0)+'）', R.kyuyo0);
@@ -2092,6 +2132,134 @@ function render(){
   $('detail').innerHTML = h;
   renderFuyo(I);
   saveState();
+}
+
+/* ============================================================
+   4b. 健康保険の被扶養者の判定
+   年収の上限（130万円／60歳以上・障害者は180万円）だけでは決まらない。
+   同居なら「被保険者の年間収入の2分の1未満」、
+   別居なら「被保険者からの仕送り額より少ない」ことも要る。
+   どちらに当たるかで結論が変わるので、両方を並べて出す。
+   ============================================================ */
+/* 健康保険でいう「収入」。税の所得ではなく収入そのもので、交通費や賞与も含む。
+   業務委託は、協会けんぽだと原則そのまま。健保組合には経費を認めるところもある。 */
+function kenpoRev(I){
+  const jigyo = I.kenpoKeihi==='sub' ? Math.max(0, I.jigyoRev - I.keihi) : I.jigyoRev;
+  return I.kyuyoRev + jigyo + I.nenkinRev + I.otherInc;
+}
+/* 年間収入の上限。令和7年10月1日から、19歳以上23歳未満（配偶者を除く）は150万円未満に
+   引き上げられた。60歳以上・障害者の180万円未満は従来どおりで、重なるときは高いほうを採る。
+   年齢は認定日が属する年の12月31日時点で見る（このアプリの「年齢」と同じ）。 */
+function kenpoLimit(I){
+  const wide = (I.age>=60 || I.disab!=='none');
+  const young = I.year>=2025 && I.age>=19 && I.age<=22 && !I.depOfSpouse;
+  let v = 1300000, why = '';
+  if(young){ v = 1500000; why = '19歳以上23歳未満（配偶者を除く）'; }
+  if(wide && 1800000>v){ v = 1800000; why = '60歳以上または障害者'; }
+  return {limit:v, why:why, wide:wide, young:young};
+}
+function kenpoCheck(I){
+  const L = kenpoLimit(I);
+  const wide = L.wide, limit = L.limit;
+  const revCap = limit - 1;                                  // 「130万円未満」なので上限はその1円下
+  const rev = kenpoRev(I);
+  const sendYear = I.shiokuri * 12;
+  const halfCap = I.pKyuyo>0 ? Math.ceil(I.pKyuyo/2) - 1 : 0; // 「2分の1未満」
+  const sendCap = sendYear>0 ? sendYear - 1 : 0;              // 「仕送りより少ない」
+  const mk = function(mode){
+    const known = mode==='same' ? I.pKyuyo>0 : sendYear>0;
+    const other = mode==='same' ? halfCap : sendCap;
+    const cap = known ? Math.min(revCap, other) : revCap;
+    return {mode:mode, known:known, other:other, cap:cap,
+            okRev:rev<=revCap, okOther:known && rev<=other,
+            ok:(rev<=revCap) && (!known || rev<=other), room:cap-rev};
+  };
+  return {limit:limit, wide:wide, young:L.young, why:L.why, rev:rev, revCap:revCap,
+          perMonth:Math.floor(limit/12), hasHost:I.depOfParent||I.depOfSpouse,
+          who:I.depOfParent?'親など':'配偶者', live:I.kenpoLive,
+          pKyuyo:I.pKyuyo, sendYear:sendYear, send:I.shiokuri,
+          same:mk('same'), apart:mk('apart')};
+}
+function kenpoCardHTML(I, K){
+  const cur = K.live==='apart' ? K.apart : K.same;
+  const cell = function(c, txt, cls){
+    return '<td class="'+((c.mode===K.live?'sel ':'')+(cls||'')).trim()+'">'+txt+'</td>';
+  };
+  const cols = [K.same, K.apart];
+  const row = function(label, fn, clsFn){
+    return '<tr><td class="lbl">'+label+'</td>'
+      + cols.map(function(c){ return cell(c, fn(c), clsFn?clsFn(c):''); }).join('')+'</tr>';
+  };
+  const cond = function(c){
+    return c.mode==='same'
+      ? '扶養している人の<br>年収の<b>2分の1未満</b>'
+      : '<b>仕送り額</b>より少ない';
+  };
+  const condAmt = function(c){
+    if(!c.known) return c.mode==='same' ? '<span class="zero">年収が未入力</span>' : '<span class="zero">仕送りが未入力</span>';
+    return yen(c.other)+' まで';
+  };
+
+  let h = '<div class="pc-ttl">健康保険の扶養（被扶養者）の判定</div>';
+  if(!K.hasHost){
+    h += '<p class="pc-msg">「あなたの状況」で<b>誰の扶養に入っているか</b>を選ぶと、同居・別居それぞれの条件まで判定します。'
+       + 'いまは年収の上限だけで見ています。 <button type="button" class="lnk" data-go="you">設定する</button></p>';
+  }
+  h += '<div class="pc-big'+(cur.ok?' zero':'')+'">'+(cur.ok?'入っていられます':'外れます')+'</div>';
+  h += '<p class="pc-msg">'+(K.live==='apart'?'<b>別居</b>':'<b>同居</b>')+'として見たときの結論です。'
+     + '判定に使う年間収入の見込みは <b>'+yen(K.rev)+'</b>'
+     + (cur.ok ? '、上限 '+yen(cur.cap)+' まであと <b>'+yen(Math.max(0,cur.room))+'</b>。'
+               : '、上限 '+yen(cur.cap)+' を <b>'+yen(K.rev-cur.cap)+'</b> 超えています。')
+     + '</p>';
+
+  h += '<div class="cmpwrap"><table class="cmp"><tr><th></th>'
+     + cols.map(function(c){
+         return '<th class="c'+(c.mode===K.live?' sel':'')+'">'+(c.mode==='same'?'同居の場合':'別居の場合')
+              + (c.mode===K.live?'<br><span style="font-weight:400">（いまの選択）</span>':'')+'</th>';
+       }).join('')+'</tr>';
+  h += row('年間収入の見込み', function(){ return yen(K.rev); });
+  h += row('条件①　年収の上限', function(){ return yen(K.limit)+' 未満'; },
+           function(c){ return c.okRev?'good':'bad'; });
+  h += row('条件②　もう一つの条件', cond);
+  h += row('　　その上限', condAmt, function(c){ return !c.known?'':(c.okOther?'good':'bad'); });
+  // 条件②が分からない列は、結論まで出さずに「入力しだい」と断る
+  const vague = function(c){ return K.hasHost && !c.known; };
+  h += row('実際に効く上限', function(c){
+         return vague(c) ? yen(c.cap)+'<br><span class="zero">条件②しだいでさらに下がります</span>' : yen(c.cap);
+       });
+  h += row('判定', function(c){
+         if(vague(c)) return c.okRev ? '<span class="zero">条件①は満たす<br>（条件②は未入力）</span>' : '外れる';
+         return c.ok ? '入れる' : '外れる';
+       }, function(c){ return vague(c) ? (c.okRev?'':'bad') : (c.ok?'good':'bad'); });
+  h += row('あと稼げる額', function(c){
+         if(vague(c)) return c.okRev ? '<span class="zero">'+(c.mode==='apart'?'仕送り額':'相手の年収')+'しだい</span>' : '—';
+         return c.ok ? yen(Math.max(0,c.room)) : '—';
+       }, function(c){ return (!vague(c) && c.ok) ? 'good' : ''; });
+  h += '</table></div>';
+
+  const notes = [];
+  if(K.why) notes.push('年収の上限が <b>'+yen(K.limit)+'</b> なのは <b>'+K.why+'</b>だからです。'
+    + (K.young&&!K.wide ? '19歳以上23歳未満の枠は<b>令和7年10月1日</b>から始まりました（それ以前の認定は130万円で判定されます）。配偶者は対象外で130万円のままです。' : ''));
+  if(K.young&&!K.wide){
+    notes.push('この <b>150万円</b> は健康保険の話で、税の<b>特定親族特別控除</b>が満額63万円になる線（令和7年分は給与150万円以下、'
+      + '<b>令和8年分は給与159万円以下</b>）とは別物です。令和8年分では税の線だけが上がり、健康保険は150万円未満のままなので、'
+      + 'その間（150万〜159万円）は<b>親の控除は満額のまま健康保険の扶養だけ外れます</b>。');
+  }
+  notes.push('月額の目安は <b>'+yen(K.perMonth)+'</b>。年の途中でもこれを継続的に超えると、その時点から外れる扱いが一般的です。');
+  if(K.live==='same' && K.same.known && !K.same.okOther && K.same.okRev){
+    notes.push('収入が'+K.who+'の年収の2分の1以上でも、<b>'+K.who+'の年収を上回らず、生計維持の中心が'+K.who+'だと保険者が認めれば</b>認定されることがあります（総合判断）。加入先に確認してください。');
+  }
+  if(K.live==='apart'){
+    notes.push('仕送りは<b>継続して</b>、手渡しではなく振込など<b>証明できる形</b>で行う必要があります。'
+      + (K.send>0 ? '月 '+yen(K.send)+'（年 '+yen(K.sendYear)+'）として計算しています。' : '仕送り額を入れると判定できます。'));
+    notes.push('親・祖父母・配偶者・子・孫・兄弟姉妹は別居でも認定されます。それ以外の三親等内の親族は<b>同居が必要</b>です。');
+  }
+  notes.push('ここでいう収入は税の「所得」ではなく<b>収入そのもの</b>です。通勤手当・賞与・失業給付・年金・傷病手当金も含みます'
+    + (I.kenpoKeihi==='sub' ? '。業務委託は必要経費を引いた額で見ています' : '。業務委託は経費を引かずに見ています（協会けんぽの原則）')+'。');
+  notes.push('最終的に判断するのは加入先の保険者です。健保組合は独自の基準を持つことがあります。');
+  h += '<ul class="aud-tips" style="font-size:12px">'
+     + notes.map(function(x){ return '<li>'+x+'</li>'; }).join('')+'</ul>';
+  return h;
 }
 
 /* 壁メーター1件分のHTML（ホームとタイプ別ページで共用） */
@@ -2301,7 +2469,9 @@ function manualTokutei(I){
       + '<li>住民税にも反映されます（令和8年度分から）。親の住民税は、翌年6月からの徴収額に効きます。所得税とは控除額が違い、満額は45万円です</li></ul>')
     + step(5, 'よくある間違い',
       '<ul><li><b>扶養控除と特定親族特別控除は同時に受けられません。</b>所得が '+manOf(lim)+' 以下なら扶養控除、超えたら特定親族特別控除です。境目で申告書の書く欄が変わります</li>'
-      + '<li><b>健康保険の扶養（130万円）は別の判定です。</b>税の控除が残っていても、年収130万円（見込み）を超えると家族の健康保険から外れ、自分で国民健康保険や勤務先の保険に入ることになります</li>'
+      + '<li><b>健康保険の扶養は別の判定です。</b>19歳以上23歳未満（配偶者を除く）は令和7年10月から <b>150万円未満</b>（それ以外は130万円未満、60歳以上・障害者は180万円未満）。'
+      + 'くわえて<b>同居なら親の年収の2分の1未満</b>、<b>別居なら仕送り額より少ない</b>ことが要ります。'
+      + '税の控除が残っていても外れることがあり、令和8年分は税の満額の線が給与159万円まで上がる一方で健康保険は150万円未満のままなので、その間は<b>控除は満額のまま健康保険だけ外れます</b></li>'
       + '<li>親の合計所得がいくらでも、特定親族特別控除の額は変わりません（配偶者特別控除のような本人所得による減額はありません）。ただし親の所得が高いほど、控除が減ったときの税額の増え方は大きくなります</li>'
       + '<li>合計所得123万円を超えると控除は0になります。年末に駆け込みで働いて超えないよう、上の表で確認してください</li></ul>');
 }
@@ -2340,7 +2510,9 @@ const AUD = {
         t.push('この線を1円でも超えると、親などが受けている扶養控除（一般38万円・住民税33万円）が<b>丸ごと</b>なくなります。増える税額は上のカードで確認できます。');
       }
       t.push('あなた自身にも住民税・所得税の壁があります（給与だけなら住民税 '+kabeNums(y).rt+'、所得税 '+kabeNums(y).it+' が目安）。扶養の線とは別に効きます。');
-      t.push('家族の健康保険にとどまるには年収 <b>130万円</b> 未満（見込み）が目安です。こちらは扶養控除とは別の判定です。');
+      t.push('家族の健康保険にとどまるには、年収 <b>130万円</b> 未満（見込み）に加えて、'
+        + '<b>同居なら扶養している人の年収の2分の1未満</b>、<b>別居なら仕送り額より少ない</b>ことが要ります。'
+        + '「税額の明細」の判定カードで、同居・別居の両方を並べて確認できます。');
       return t;
     }
   },
@@ -2360,7 +2532,11 @@ const AUD = {
       }
       const sl = studentLimit(y);
       t.push((I.student?'あなたは学生なので、':'学生なら、')+'合計所得 <b>'+manOf(sl)+'</b>（給与 '+manOf(revForIncome(sl,y))+'）までは<b>勤労学生控除</b>（27万円）で自分の所得税が軽くなります。'+(I.student?'':'「あなたの状況」で学生にチェックを入れてください。'));
-      t.push('家族の健康保険にとどまるには年収 <b>130万円</b> 未満が目安です。学生は勤務先の社会保険（106万円）の対象外です。');
+      t.push('家族の健康保険は <b>令和7年10月</b> から、19歳以上23歳未満（配偶者を除く）の年収要件が <b>150万円未満</b> に上がりました。'
+        + 'ただしこれは税の特定親族特別控除が満額になる線（令和7年分は給与150万円以下、<b>令和8年分は給与159万円以下</b>）とは別物で、'
+        + '健康保険のほうは令和8年分でも150万円未満のままです。'
+        + 'さらに <b>同居なら親の年収の2分の1未満</b>、<b>別居なら仕送り額より少ない</b>ことも要ります。'
+        + '「税額の明細」の判定カードで確かめてください。学生は勤務先の社会保険（106万円）の対象外です。');
       return t;
     }
   }
@@ -2666,7 +2842,7 @@ function saveState(){
 }
 function applyState(s){
   if(!s || typeof s!=='object') return false;
-  if(s.y && YMAP[s.y]) year = s.y;
+  if(s.y && YMAP[s.y] && s.y >= YEAR_MIN) year = s.y;   // 隠した年分が保存されていても戻さない
   syncYear();   // 年分によって選択肢が変わるので、値を戻す前に作り直す
   Object.keys(s.f||{}).forEach(function(id){
     const el = $(id); if(!el) return;
@@ -3069,11 +3245,12 @@ $('backBtn').addEventListener('click', function(){ goto('home'); });
    ============================================================ */
 const DEFAULTS = {kyuyoRev:900000, jigyoRev:600000, keihi:120000, nenkinRev:0, otherInc:0,
   spKyuyo:0, spOther:0, shakai:250000, ideco:0, hoken:0, other:0, kintou:5000,
-  pKyuyo:6000000, pShakai:900000};
+  pKyuyo:6000000, pShakai:900000, shiokuri:0};
 function applyDefaults(){
   Object.keys(DEFAULTS).forEach(function(k){ $(k).value = DEFAULTS[k].toLocaleString('ja-JP'); });
   $('age').value = 21; $('spAge').value = 0;
-  ['disab','widow','kyuchi','channel','kubun'].forEach(function(id){ const e=$(id); if(e) e.selectedIndex = 0; });
+  ['disab','widow','kyuchi','channel','kubun','kenpoLive','kenpoKeihi'].forEach(function(id){ const e=$(id); if(e) e.selectedIndex = 0; });
+  $('shiokuriRow').hidden = true;
   ['student','depOfParent','depOfSpouse','spExists'].forEach(function(id){ $(id).checked = false; });
   $('tryKyuyo').value = '0'; $('tryJigyo').value = '0';
   $('pref').value = ''; $('kintouAuto').checked = true; syncCity();
