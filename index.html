@@ -2165,7 +2165,12 @@ function render(){
 
   h += '<table class="led" style="margin-top:18px">';
   h += t('年間の税額 合計', R.taxAll, 'grand');
-  h += '<tr><td class="note" colspan="2">収入合計 '+yen(R.revTotal)+' − 税額 '+yen(R.taxAll)+' − 社会保険料等 '+yen(I.shakai+I.ideco)+' ＝ 手取りの目安 '+yen(Math.max(0,R.revTotal-I.keihi-R.taxAll-I.shakai-I.ideco))+'</td></tr>';
+  // 引くものを全部書く。経費を書き落とすと、読んだ人が計算を追えなくなる
+  h += '<tr><td class="note" colspan="2">収入合計 '+yen(R.revTotal)
+     + (I.keihi ? ' − 必要経費 '+yen(I.keihi) : '')
+     + ' − 税額 '+yen(R.taxAll)
+     + ((I.shakai+I.ideco) ? ' − 社会保険料等 '+yen(I.shakai+I.ideco) : '')
+     + ' ＝ 手取りの目安 '+yen(Math.max(0,R.revTotal-I.keihi-R.taxAll-I.shakai-I.ideco))+'</td></tr>';
   h += '</table>';
 
   $('detail').innerHTML = h;
@@ -2884,6 +2889,9 @@ function renderTry(I, R, rows, pending){
   h += line('所得税等', R.taxIt, R2.taxIt);
   h += line('住民税', R.taxRt, R2.taxRt);
   h += line('税額の合計', R.taxAll, R2.taxAll, 'sum');
+  // 税額のほかに何を引いているかが見えないと、手取りの数字が追えなくなる
+  if(I.keihi) h += line('− 必要経費', I.keihi, I.keihi);
+  if(I.shakai+I.ideco) h += line('− 社会保険料・iDeCo', I.shakai+I.ideco, I.shakai+I.ideco);
   h += line('手取りの目安', t1, t2, 'sum');
   if(pb1){
     h += line('親などの負担増', p1, p2);
@@ -2901,6 +2909,15 @@ function renderTry(I, R, rows, pending){
      + (broken.length ? '<br><span class="bad">超える壁：'+broken.join('、')+'</span>'
                       : '<br>新しく超える壁はありません。')
      + '</p>';
+  if(I.keihi || I.shakai || I.ideco){
+    h += '<p class="wi-msg" style="color:var(--ink-3)">手取りは、収入合計から<b>税額だけでなく必要経費と社会保険料も引いた</b>残りです。'
+       + (I.keihi ? '必要経費 '+yen(I.keihi)+'（「収入」の画面）' : '')
+       + (I.keihi && (I.shakai+I.ideco) ? '、' : '')
+       + ((I.shakai+I.ideco) ? '社会保険料・iDeCo '+yen(I.shakai+I.ideco)+'（「所得控除」の画面）' : '')
+       + ' で計算しています。実際と違えば直してください。'
+       + ' <button type="button" class="lnk" data-go="income">収入</button>'
+       + ' <button type="button" class="lnk" data-go="deduction">所得控除</button></p>';
+  }
   out.innerHTML = h;
 }
 
