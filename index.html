@@ -300,6 +300,16 @@ input:focus-visible,select:focus-visible,button:focus-visible{
 .whatif .wi-fields{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px}
 .whatif .wi-f{display:grid; gap:3px; min-width:0}
 .whatif .wi-f > span{font-size:12px; color:var(--ink-2)}
+.whatif .wi-f.wide{grid-column:1 / -1}
+.whatif .wi-note{
+  margin:0; padding:8px 10px; font-size:12px; line-height:1.7; border-radius:2px;
+  background:var(--card); border:1px dashed var(--rule-strong); color:var(--ink-2);
+}
+.whatif .wi-note b{color:var(--ink)}
+.whatif .wi-head{
+  display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-2); flex-wrap:wrap;
+}
+.whatif .wi-head .pill{flex:none}
 
 /* ---------- 親などの負担 ---------- */
 .parentcard{
@@ -402,27 +412,30 @@ table.seg th:last-child,table.seg td:last-child{padding-right:0}
 /* ---------- ホームのメニューと画面切り替え ---------- */
 .cols[hidden]{display:none}
 .menu{
-  display:grid; grid-template-columns:repeat(auto-fit,minmax(258px,1fr));
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(152px,1fr));
   gap:10px; padding:16px 20px 20px;
 }
 .menu[hidden]{display:none}
+/* 縦に長い帯ではなく、正方形寄りのカードを並べる。
+   アイコンを上に置いて、名前と現在値を下に重ねる。 */
 .mitem{
-  display:flex; align-items:center; gap:12px; width:100%; min-height:66px;
-  padding:12px 13px; text-align:left; cursor:pointer; font:inherit;
+  position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:9px;
+  width:100%; min-height:126px; padding:13px 12px 12px; text-align:left; cursor:pointer; font:inherit;
   background:var(--card-2); color:var(--ink); border:1px solid var(--rule); border-radius:2px;
 }
 .mitem:hover{border-color:var(--accent); background:var(--accent-soft)}
 .mitem .ic{
-  flex:none; width:38px; height:38px; display:grid; place-items:center; border-radius:2px;
+  flex:none; width:34px; height:34px; display:grid; place-items:center; border-radius:2px;
   background:var(--accent); color:var(--on-accent);
-  font-family:var(--mincho); font-size:17px; font-weight:600; letter-spacing:0;
+  font-family:var(--mincho); font-size:16px; font-weight:600; letter-spacing:0;
 }
-.mitem .tx{display:grid; gap:2px; min-width:0}
-.mitem .nm{font-size:14px; font-weight:700; color:var(--ink)}
+.mitem .tx{display:grid; gap:3px; min-width:0; width:100%}
+.mitem .nm{font-size:13.5px; font-weight:700; color:var(--ink); line-height:1.4}
 .mitem .sm{
-  font-size:12px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  font-size:11px; line-height:1.55; color:var(--ink-3); white-space:normal; overflow:hidden;
+  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow-wrap:anywhere;
 }
-.mitem .ar{margin-left:auto; flex:none; color:var(--ink-3); font-size:18px; line-height:1}
+.mitem .ar{position:absolute; top:11px; right:11px; color:var(--ink-3); font-size:16px; line-height:1}
 .viewbar{
   display:flex; align-items:center; gap:10px; padding:8px 12px; position:sticky; top:0; z-index:6;
   background:var(--card-2); border-bottom:1px solid var(--rule);
@@ -597,7 +610,8 @@ table.cmp td.lbl{font-family:var(--gothic); color:var(--ink-2); white-space:norm
   .seal{width:54px; height:54px; font-size:14px; top:14px; right:14px}
   .walls{padding:16px}
   .detail{padding:2px 16px 18px}
-  .menu{grid-template-columns:1fr; padding:12px 12px 16px; gap:8px}
+  .menu{grid-template-columns:repeat(2,minmax(0,1fr)); padding:12px 12px 16px; gap:8px}
+  .mitem{min-height:134px; padding:12px 11px 11px}
   .months .mgrid{grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
   .months{padding:12px 12px 14px}
   .dep{grid-template-columns:1fr 1fr; gap:10px; padding:14px 0}
@@ -916,23 +930,29 @@ footer.fine ul{margin:0; padding-left:1.2em}
       <section class="sect" data-view="tokutei"><div class="sect-body aud" id="aud-tokutei"></div></section>
 
       <section class="sect" data-view="detail">
-        <div class="sect-head"><h2>税額の明細と試算枠</h2><span class="hint">あと稼いだ場合も試せます</span></div>
+        <div class="sect-head"><h2>税額の明細とシミュレーション</h2><span class="hint">いまの入力は変えずに試せます</span></div>
         <div class="sect-body">
           <div class="parentcard" id="parentCard" hidden></div>
           <div class="parentcard kenpo" id="kenpoCard"></div>
 
           <div class="whatif">
-            <div class="wi-top"><span class="wi-ttl">試算枠</span><span class="wi-sub">あと稼いだ場合を試す</span></div>
+            <div class="wi-top"><span class="wi-ttl">シミュレーション</span>
+              <span class="wi-sub">「あと◯◯円稼いだら」を試します</span></div>
+            <p class="wi-note">ここで出る金額は<b>試算だけ</b>です。収入の入力やほかの画面の表示は変わりません。</p>
             <div class="wi-fields">
-              <label class="wi-f"><span>給与であと</span>
-                <input class="yen" type="text" inputmode="numeric" id="tryKyuyo" value="0" aria-label="給与で追加で稼ぐ金額"></label>
-              <label class="wi-f"><span>業務委託であと</span>
-                <input class="yen" type="text" inputmode="numeric" id="tryJigyo" value="0" aria-label="業務委託で追加で稼ぐ金額"></label>
+              <label class="wi-f wide"><span>どの線まで稼ぐか選ぶ</span>
+                <select id="tryLine" aria-label="シミュレーションの目標にする線"></select></label>
             </div>
             <div class="wi-acts">
-              <button type="button" class="btn" data-fill="kyuyo">給与を壁の直前まで</button>
-              <button type="button" class="btn" data-fill="jigyo">業務委託を壁の直前まで</button>
-              <button type="button" class="btn" data-fill="clear">クリア</button>
+              <button type="button" class="btn" data-fill="kyuyo">給与でこの線まで試算</button>
+              <button type="button" class="btn" data-fill="jigyo">業務委託でこの線まで試算</button>
+              <button type="button" class="btn" data-fill="clear">試算をクリア</button>
+            </div>
+            <div class="wi-fields">
+              <label class="wi-f"><span>給与であと（試算）</span>
+                <input class="yen" type="text" inputmode="numeric" id="tryKyuyo" value="0" aria-label="給与で追加で稼ぐ金額（試算）"></label>
+              <label class="wi-f"><span>業務委託であと（試算）</span>
+                <input class="yen" type="text" inputmode="numeric" id="tryJigyo" value="0" aria-label="業務委託で追加で稼ぐ金額（試算）"></label>
             </div>
             <div id="tryOut"></div>
           </div>
@@ -2794,22 +2814,54 @@ function renderParent(I, R){
   card.innerHTML = h;
 }
 
-let nearestW = null, lastI = null;   // 「壁の直前まで」ボタン用に控えておく
+let tryLines = [], lastI = null;   // 「この線まで試算」ボタン用に控えておく
+
+/* シミュレーションの目標にできる線を集める。
+   壁メーターに出ている線（住民税・所得税・扶養控除・特定親族特別控除・
+   配偶者控除・勤労学生控除）に、健康保険の被扶養者を足す。 */
+function collectTryLines(I, R, rows){
+  const list = rows.map(function(r){ return {name:r.w.name, test:r.w.test, over:r.h.over}; });
+  if(I.depOfParent || I.depOfSpouse){
+    const kt = function(r, J){
+      const K = kenpoCheck(J), c = (K.live==='apart' ? K.apart : K.same);
+      return K.rev <= c.cap;
+    };
+    list.push({name:'健康保険の扶養（被扶養者）', test:kt, over:!kt(R, I)});
+  }
+  return list;
+}
 
 function renderTry(I, R, rows, pending){
-  nearestW = pending.length ? pending[0].w : null;
   lastI = I;
+  tryLines = collectTryLines(I, R, rows);
+
+  // 選択肢を作り直す。選んでいた線が残っていればそのまま、なければ一番近い線にする
+  const sel = $('tryLine'), keepLine = sel.value;
+  sel.innerHTML = tryLines.map(function(l){
+    return '<option value="'+esc(l.name)+'">'+esc(l.name)+(l.over?'（すでに超えています）':'')+'</option>';
+  }).join('');
+  // 選んだ線は、すでに超えていてもそのまま残す（黙って別の線に飛ばさない）
+  const alive = tryLines.filter(function(l){ return l.name===keepLine; })[0];
+  sel.value = alive ? keepLine
+            : (pending.length ? pending[0].w.name
+              : (tryLines.filter(function(l){ return !l.over; })[0] || tryLines[0] || {}).name || '');
+  const chosen = tryLines.filter(function(l){ return l.name===sel.value; })[0];
+
   Array.prototype.forEach.call(document.querySelectorAll('.wi-acts .btn[data-fill]'), function(b){
     if(b.dataset.fill==='clear') return;
-    b.disabled = !nearestW;
-    b.style.opacity = nearestW ? '' : '.45';
+    b.disabled = !chosen || chosen.over;
+    b.style.opacity = b.disabled ? '.45' : '';
   });
 
   const addK = tryNumOf('tryKyuyo'), addJ = tryNumOf('tryJigyo'), add = addK + addJ;
   const out = $('tryOut');
   if(add<=0){
-    out.innerHTML = '<p class="wi-msg">給与・業務委託それぞれの金額を入れると、'
-      + 'いまの入力にその分を上乗せしたときの税額と手取りを比べられます。両方に入れて合わせて試すこともできます。</p>';
+    out.innerHTML = '<p class="wi-msg">'
+      + (chosen && chosen.over
+          ? '<b>'+esc(chosen.name)+'</b>はすでに超えています。ほかの線を選ぶか、金額を直接入れてください。'
+          : '上のボタンを押すと、選んだ線の直前まで稼いだ場合の金額が入ります。'
+            + '給与・業務委託それぞれの欄に直接入れることもできます（両方に入れれば合わせて試せます）。')
+      + '</p>';
     return;
   }
   const J = withTry(I, addK, addJ);
@@ -2824,7 +2876,9 @@ function renderTry(I, R, rows, pending){
     return '<tr'+(cls?' class="'+cls+'"':'')+'><td>'+name+'</td><td class="a">'+yen(a)+'</td><td class="b">'+yen(b)+'</td></tr>';
   };
   const head = [addK?'給与＋'+yen(addK):'', addJ?'業務委託＋'+yen(addJ):''].filter(Boolean).join(' / ');
-  let h = '<table class="wi"><tr><td></td><td class="a">いま</td><td class="b">'+head+'</td></tr>';
+  let h = '<div class="wi-head"><span class="pill warn">試算</span>'
+        + '<span>この列は<b>仮の数字</b>です。実際の入力は変わっていません。</span></div>';
+  h += '<table class="wi"><tr><td></td><td class="a">いま</td><td class="b">'+esc(head)+'（試算）</td></tr>';
   h += line('収入合計', R.revTotal, R2.revTotal);
   h += line('合計所得金額', R.total, R2.total);
   h += line('所得税等', R.taxIt, R2.taxIt);
@@ -3246,7 +3300,7 @@ const VIEWS = {
   ippan:{t:'一般向け'}, fuyo:{t:'扶養親族向け'}, tokutei:{t:'特定扶養親族向け'}, income:{t:'収入'}, you:{t:'あなたの状況'}, spouse:{t:'配偶者'},
   deps:{t:'扶養親族'}, deduction:{t:'所得控除'}, area:{t:'お住まいと住民税'},
   sync:{t:'他の端末と同期'}, settings:{t:'試算の設定'},
-  detail:{t:'税額の明細と試算枠'}, family:{t:'扶養している人と手取り'}
+  detail:{t:'税額の明細とシミュレーション'}, family:{t:'扶養している人と手取り'}
 };
 const esc = function(t){
   return String(t).replace(/[&<>"]/g, function(c){
@@ -3288,7 +3342,7 @@ const MENU = [
   {v:'settings', ic:'設', nm:'試算の設定', sm:function(I){
     return I.kyuchi+'級地・メーターは'+(I.channel==='kyuyo'?'給与':'業務委託')+'基準';
   }},
-  {v:'detail', ic:'税', nm:'税額の明細と試算枠', sm:function(I,R){
+  {v:'detail', ic:'税', nm:'税額の明細とシミュレーション', sm:function(I,R){
     return '年間の税額 '+yen(R.taxAll);
   }},
   {v:'family', ic:'図', nm:'扶養している人と手取り',
@@ -3385,6 +3439,7 @@ $('form').addEventListener('input', render);
 $('form').addEventListener('change', render);
 
 /* 試算枠（フォームの外にあるので個別に配線する） */
+$('tryLine').addEventListener('change', render);
 ['tryKyuyo','tryJigyo'].forEach(function(id){
   $(id).addEventListener('input', render);
   $(id).addEventListener('blur', function(){ $(id).value = tryNumOf(id).toLocaleString('ja-JP'); });
@@ -3393,11 +3448,12 @@ Array.prototype.forEach.call(document.querySelectorAll('.wi-acts .btn[data-fill]
   b.addEventListener('click', function(){
     const kind = b.dataset.fill;
     if(kind==='clear'){ $('tryKyuyo').value = '0'; $('tryJigyo').value = '0'; render(); return; }
-    if(!nearestW || !lastI) return;
-    // もう一方の欄に入っている分は据え置いたまま、この区分で壁の直前まで求める
+    const line = tryLines.filter(function(l){ return l.name === $('tryLine').value; })[0];
+    if(!line || line.over || !lastI) return;
+    // もう一方の欄に入っている分は据え置いたまま、この区分で選んだ線の直前まで求める
     const other = kind==='kyuyo' ? tryNumOf('tryJigyo') : tryNumOf('tryKyuyo');
     const base = kind==='kyuyo' ? withTry(lastI, 0, other) : withTry(lastI, other, 0);
-    const h = headroom(base, nearestW.test, kind);
+    const h = headroom(base, line.test, kind);
     const v = (h.over || h.amount===null) ? 0 : h.amount;
     $(kind==='kyuyo' ? 'tryKyuyo' : 'tryJigyo').value = v.toLocaleString('ja-JP');
     render();
